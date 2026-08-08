@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Tino el Zorrito</string>
-    <string name="title_activity_main">Tino el Zorrito</string>
+    <string name="app_name">Amigo Kids</string>
+    <string name="title_activity_main">Amigo Kids</string>
     <string name="package_name">io.tinoto.app</string>
     <string name="custom_url_scheme">io.tinoto.app</string>
 </resources>

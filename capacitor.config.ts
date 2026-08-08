@@ -4,7 +4,7 @@ const APP_URL = process.env.APP_URL?.trim() || '';
 
 const config: CapacitorConfig = {
   appId: 'io.tinoto.app',
-  appName: 'Tino el Zorrito',
+  appName: 'Amigo Kids',
   webDir: 'web',
   server: APP_URL ? { url: APP_URL, cleartext: false } : undefined,
   android: {

@@ -11,11 +11,11 @@ const fredoka = Fredoka({
 });
 
 export const metadata: Metadata = {
-  title: "Tino el Zorrito",
+  title: "Amigo Kids",
   description:
     "Asistente de voz amigable para niños de 3 a 12 años: aprende, juega y organiza tus rutinas del día a día.",
   manifest: "/manifest.webmanifest",
-  applicationName: "Tino el Zorrito",
+  applicationName: "Amigo Kids",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Tino",
+    title: "Amigo Kids",
   },
   formatDetection: {
     telephone: false,

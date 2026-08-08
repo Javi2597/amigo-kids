@@ -1,6 +1,6 @@
-# Tino el Zorrito 🦊
+# Amigo Kids 🦊
 
-Asistente de voz amigable para niños de 3 a 12 años: aprende vocabulario, juega y organiza rutinas diarias.
+Asistente de voz amigable para niños de 3 a 12 años (con la mascota Tino el Zorrito): aprende vocabulario, juega y organiza rutinas diarias.
 
 ## Plataformas
 
