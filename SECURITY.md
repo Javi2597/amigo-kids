@@ -13,7 +13,7 @@
 |---|---|
 | Datos personales | Tino nunca pide nombre completo, dirección ni información privada (regla de sistema + clasificador) |
 | Contenido no apto | Triple capa: clasificador determinista en `/api/chat` (intercepta `danger` antes del proveedor con guion fijo) + prompt de sistema + guard determinista de la respuesta (`isReplySafe`) |
-| Imágenes no aptas | Doble capa en `/api/vision`: `guardImage()` clasifica la foto ANTES de describirla; si no es apta devuelve guion fijo y NUNCA la describe |
+| Imágenes no aptas | Una sola llamada de visión por foto (`/api/vision` → `analyzeImage`) integra el guard: si `safe:false` la ruta responde con guion fijo y la foto NUNCA se describe. Sin costo doble (evita 429 del plan gratuito) |
 | Situaciones de riesgo del menor | Categorías de riesgo alto → guion fijo "hablá con un adulto"; 3 alertas al día → bloqueo suave del chat que solo remueve el padre |
 | Privacidad de fotos | Las fotos viven solo en memoria del navegador mientras se analizan; `/api/vision` es stateless |
 | Consentimientos de menor | Micrófono y cámara exigen opt-in del adulto en el panel de papás; sin permiso, botones inactivos + modal explicativo |

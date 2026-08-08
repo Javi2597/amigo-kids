@@ -10,13 +10,14 @@ type PhotoButtonProps = {
   size?: number;
 };
 
-const MAX_EDGE = 1200;
-const JPEG_QUALITY = 0.8;
+const MAX_EDGE = 1024;
+const JPEG_QUALITY = 0.75;
 
 /**
- * Botón de cámara/galería. Comprime la imagen en canvas (≤1200px, JPEG ~0.8)
- * para no exceder límites del servidor y cuidar los datos del menor.
- * Solo devuelve la miniatura base64; no guarda en disco ni en el historial.
+ * Botón de cámara/galería. Comprime la imagen en canvas (≤1024px, JPEG ~0.75)
+ * para no exceder límites del servidor y cuidar los datos del menor (y el costo
+ * de tokens por foto). Solo devuelve la miniatura base64; no guarda en disco ni
+ * en el historial.
  */
 export default function PhotoButton({ onImage, disabled, size = 72 }: PhotoButtonProps) {
   const cameraRef = useRef<HTMLInputElement>(null);

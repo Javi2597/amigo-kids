@@ -37,81 +37,40 @@ REGLAS PARA LA FOTO:
 }
 
 /**
- * Guard determinístico de la imagen: antes de que Tino DESCRIBA la foto, esta
- * pasada estricta decide si es apta. Si no lo es, la ruta responde con guion fijo
- * y la foto NUNCA se describe. Stateless: no guarda nada.
- */
-export async function guardImage(image: VisionImage): Promise<{ safe: boolean }> {
-  const base = getVisionBase();
-  const model = getVisionModel();
-
-  const res = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getAIKey()}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Eres un moderador de imágenes de una app infantil. Revisa la imagen " +
-            "y responde SOLO con JSON: {\"safe\":true} si NUNCA debería verse en una app " +
-            "para niños (violencia, sangre, armas, contenido adulto o sexual, figuras " +
-            "completamente desnudas, drogas, mensajes de odio) o {\"safe\":false} si esa " +
-            "imagen proviene de la cámara del propio niño o de su hogar al 100%. " +
-            "En la duda, marca safe:false. No añadas texto. El niño está usando la app",
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${image.mime || "image/jpeg"};base64,${image.data}`,
-              },
-            },
-            { type: "text", text: "Marca la imagen." },
-          ],
-        },
-      ],
-      max_tokens: 20,
-      temperature: 0,
-      reasoning_effort: "none",
-    }),
-  });
-
-  if (!res.ok) {
-    return { safe: false }; // a prueba de fallos
-  }
-  const dataRes = await res.json();
-  const content = (dataRes?.choices?.[0]?.message?.content ?? "").trim();
-  const m = content.match(/"safe"\s*:\s*(true|false)/);
-  if (!m) return { safe: false };
-  return { safe: m[1] === "true" };
-}
-
-/**
- * Envía el hilo (con una imagen en el turno del niño) al modelo de visión de Groq
- * (compatible con la API de OpenAI: chat/completions).
- * Stateless: no guarda nada más allá de la llamada.
- * Devuelve la respuesta de Tino o lanza si hay error grave.
+ * Una SOLA llamada de visión que hace a la vez de guard de seguridad y de
+ * generador de la respuesta. Devuelve {
+ *   safe: boolean, // true = apropiado para describir, false = bloquear
+ *   message: string  // mensaje de Tino (solo se usa si safe es true)
+ * }.
+ * Fusionado en una llamada porque el plan gratuito de Groq limita por tokens/min:
+ * hacer guard + descripción por separado doblaba el costo y caía en 429.
+ * Stateless: no guarda nada.
  */
 export async function analyzeImage(opts: {
   messages: VisionMessage[];
   age: number;
   level: LevelId;
   topic?: string;
-}): Promise<string> {
+}): Promise<VisionResult> {
   const base = getVisionBase();
   const model = getVisionModel();
-  const system = buildVisionSystemPrompt({
+  const baseSystem = buildVisionSystemPrompt({
     age: opts.age,
     level: opts.level,
     topic: opts.topic,
   });
+  const system = `${baseSystem}
+
+IMPORTANTE: responde SOLO con JSON en la forma exacta:
+{"safe":true,"message":"<tu respuesta para el niño>"}
+donde:
+- "safe" es true si la imagen es APROPIADA para niños (juguetes, dibujos, animales,
+  plantas, comida, ropa, lugares de casa, personas vestidas) y false si contiene algo
+  que NUNCA debería verse en una app infantil (violencia, sangre, armas, desnudos,
+  contenido adulto/sexual, drogas, odio). Ante la duda marca false.
+- "message" es la respuesta de Tino siguiendo todas las reglas de arriba, SIEMPRE y
+  solo cuando safe es true. Si safe es false, deja message vacío ("").
+No añadas texto fuera del JSON.`;
 
   const messages = (opts.messages ?? []).slice(-6).map((m) => {
     const role = m.role === "user" ? "user" : "assistant";
@@ -132,20 +91,23 @@ export async function analyzeImage(opts: {
     return { role, content: m.text || "" };
   });
 
-  const res = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getAIKey()}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: system }, ...messages],
-      temperature: 0.7,
-      max_tokens: 220,
-      reasoning_effort: "none",
-    }),
-  });
+  const res = await fetchWithRetry(
+    `${base.replace(/\/$/, "")}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getAIKey()}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "system", content: system }, ...messages],
+        temperature: 0.7,
+        max_tokens: 260,
+        reasoning_effort: "none",
+      }),
+    }
+  );
 
   if (res.status === 429) {
     throw new Error("QuotaExceeded");
@@ -160,16 +122,68 @@ export async function analyzeImage(opts: {
   }
 
   const data = await res.json();
-  let text = data?.choices?.[0]?.message?.content ?? "";
-  if (!text) throw new Error("EmptyReply");
-  // Nunca debe llegar el "pensar" interno del modelo a la voz del niño.
-  // Si el proveedor lo incluye sin pedir (o cambia de modelo), lo quitamos.
-  text = text.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim();
-  if (text.startsWith("thinking")) {
-    const end = text.indexOf("response");
-    if (end !== -1) text = text.slice(end + "response".length).trim();
+  const raw = data?.choices?.[0]?.message?.content ?? "";
+  if (!raw.trim()) {
+    // A prueba de fallos: si el proveedor no devolvió nada, no se describe.
+    return { safe: false, message: "" };
   }
-  text = text.replace(/\s+/g, " ").trim();
-  if (!text) throw new Error("EmptyReply");
-  return text;
+  return parseVisionResult(raw);
+}
+
+export type VisionResult = { safe: boolean; message: string };
+
+const RETRY_ATTEMPTS = 3;
+const RETRY_BASE_MS = 1500;
+
+/**
+ * Reintenta ante 429 (límite de tokens/minuto del plan gratuito de Groq),
+ * respetando `Retry-After` si viene. Deja pasar 429 si se agotan los intentos
+ * para que la ruta responda el mensaje amistoso de Tino.
+ */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit
+): Promise<Response> {
+  let last: Response | null = null;
+  for (
+    let attempt = 0;
+    attempt <= RETRY_ATTEMPTS;
+    attempt++
+  ) {
+    last = await fetch(url, init);
+    if (last.status !== 429) return last;
+    const retryAfter = Number(last.headers.get("retry-after") || 0);
+    const wait = Math.max(retryAfter * 1000 || 0, RETRY_BASE_MS * 2 ** attempt);
+    await new Promise((r) => setTimeout(r, wait));
+  }
+  return last as Response;
+}
+
+/** Prueba varios formatos: JSON puro, con fences ```json```, o salpicado de ruido. */
+export function parseVisionResult(rawText: string): VisionResult {
+  let text = rawText
+    .replace(/<thinking>[\s\S]*?<\/thinking>/g, "")
+    .replace(/```(?:json)?\s*([\s\S]*?)```/g, "$1")
+    .trim()
+    .replace(/^[^{]*/, "")
+    .replace(/[^}]*$/, "");
+
+  let safe = false;
+  let message = "";
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed === "object" && parsed !== null) {
+      safe = parsed.safe === true;
+      message = String(parsed.message ?? "").trim();
+    }
+  } catch {
+    // fallback a regex si el JSON no fue estricto
+    const sm = text.match(/"safe"\s*:\s*(true|false)/);
+    if (sm) safe = sm[1] === "true";
+    const mm = text.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (mm) message = mm[1].replace(/\\"/g, '"').replace(/\\n/g, " ");
+  }
+
+  message = message.replace(/\s+/g, " ").trim();
+  return { safe, message };
 }

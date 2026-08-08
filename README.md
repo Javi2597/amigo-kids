@@ -57,7 +57,7 @@ claves de IA quedan solo en el servidor y nunca llegan al teléfono.
 
 ## Seguridad y privacidad
 
-- **Moderación real**: `lib/safety.ts` clasifica cada mensaje (riesgo alto → guion fijo seguro, sin que el LLM responda libremente) y guard la respuesta de Tino antes de hablar; `/api/vision` tiene una pasada `guardImage` que no describe fotos no aptas.
+- **Moderación real**: `lib/safety.ts` clasifica cada mensaje (riesgo alto → guion fijo seguro, sin que el LLM responda libremente) y guard la respuesta de Tino antes de hablar; `/api/vision` integra una pasada de seguridad en la misma llamada y nunca describe fotos no aptas (una sola llamada por foto evita caer en 429 del plan gratuito).
 - **Espacios de riesgo**: 3 alertas de riesgo alto en un día → pausa automática del chat que solo puede quitar un adulto.
 - **Consentimientos**: micrófono y cámara son opt-in del adulto en el panel de papás; sin permiso los botones quedan inactivos.
 - Las fotos solo viven en memoria mientras se analizan; nunca se guardan en el teléfono ni en el servidor (`/api/vision` es stateless).

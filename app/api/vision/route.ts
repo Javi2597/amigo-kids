@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { analyzeImage, guardImage, type VisionMessage } from "@/lib/vision";
+import { analyzeImage, type VisionMessage } from "@/lib/vision";
 import { ageToLevel } from "@/lib/content";
 
 export const runtime = "nodejs";
@@ -31,8 +31,6 @@ export async function POST(req: NextRequest) {
   );
 
   let hasImage = false;
-  let guardBase64 = "";
-  let guardMime = "image/jpeg";
   const messages: VisionMessage[] = [];
 
   for (const m of raw) {
@@ -55,8 +53,6 @@ export async function POST(req: NextRequest) {
       }
       image = { data: m.image.data, mime };
       hasImage = true;
-      guardBase64 = m.image.data;
-      guardMime = mime;
     }
     messages.push({ role: m.role === "tino" ? "assistant" : "user", text, image });
   }
@@ -74,15 +70,16 @@ export async function POST(req: NextRequest) {
     typeof body.topic === "string" && body.topic ? body.topic.slice(0, 40) : undefined;
 
   try {
-    // DOBLE CAPA: clasifica la imagen antes de describirla. Si no es apta, guion
-    // fijo y la foto NUNCA se describe.
-    const guard = await guardImage({ data: guardBase64, mime: guardMime });
-    if (!guard.safe) {
-      return Response.json({ reply: UNSAFE_IMAGE_REPLY });
+    // Una SOLA llamada: si la imagen no es apta el modelo devuelve safe:false y
+    // la ruta responde con guion fijo; la foto NUNCA se describe.
+    const result = await analyzeImage({ messages, age, level, topic });
+    if (!result.safe || !result.message) {
+      return Response.json({
+        reply: UNSAFE_IMAGE_REPLY,
+        safety: { risk: "sensitive", category: "unsafe_image" },
+      });
     }
-
-    const reply = await analyzeImage({ messages, age, level, topic });
-    return Response.json({ reply });
+    return Response.json({ reply: result.message });
   } catch (err) {
     console.error("vision error", err);
     const msg = String((err as Error)?.message ?? "");
