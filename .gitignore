@@ -1,0 +1,32 @@
+# Dependencias y builds
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+
+# Claves de APIs de terceros / notas personales
+apis-banco-imagenes.txt
+
+# Vercel
+.vercel/
+
+# Apps nativas (Capacitor/Electron) — builds y artefactos
+# NOTA: android/ y ios/ SÍ se commitean porque contienen permisos nativos declarados.
+*.apk
+*.aab
+*.sha256
+android/app/build/
+ios/App/App/build/
+android/.gradle/
+android/captures/
+
+# Misc
+*.log
+.DS_Store
+next-env.d.ts.old

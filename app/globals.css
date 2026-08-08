@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  background: #fff8f1;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-rounded), system-ui, sans-serif;
+  color: #3a3a55;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(255, 201, 60, 0.14), transparent 38%),
+    radial-gradient(circle at 85% 15%, rgba(84, 192, 235, 0.12), transparent 42%),
+    radial-gradient(circle at 50% 100%, rgba(255, 138, 66, 0.12), transparent 45%),
+    #fff8f1;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%, 97% { transform: scaleY(0.1); }
+}
+
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@layer utilities {
+  .animate-blink { animation: blink 4s infinite; transform-origin: 100px 82px; }
+  .animate-bounce-soft { animation: bounce-soft 2.2s ease-in-out infinite; }
+
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .text-shadow-soft {
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.08);
+  }
+}
