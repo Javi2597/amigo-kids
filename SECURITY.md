@@ -11,10 +11,15 @@
 
 | Riesgo | Mitigación |
 |---|---|
-| Datos personales | Tino nunca pide nombre completo, dirección ni información privada (regla de sistema) |
-| Contenido no apto | Doble moderación: filtro por palabras + revisión con modelo (`/api/moderate`) |
-| Privacidad de fotos | Las fotos viven solo en memoria del navegador mientras se analizan; `/api/vision` es stateless y no guarda nada |
+| Datos personales | Tino nunca pide nombre completo, dirección ni información privada (regla de sistema + clasificador) |
+| Contenido no apto | Triple capa: clasificador determinista en `/api/chat` (intercepta `danger` antes del proveedor con guion fijo) + prompt de sistema + guard determinista de la respuesta (`isReplySafe`) |
+| Imágenes no aptas | Doble capa en `/api/vision`: `guardImage()` clasifica la foto ANTES de describirla; si no es apta devuelve guion fijo y NUNCA la describe |
+| Situaciones de riesgo del menor | Categorías de riesgo alto → guion fijo "hablá con un adulto"; 3 alertas al día → bloqueo suave del chat que solo remueve el padre |
+| Privacidad de fotos | Las fotos viven solo en memoria del navegador mientras se analizan; `/api/vision` es stateless |
+| Consentimientos de menor | Micrófono y cámara exigen opt-in del adulto en el panel de papás; sin permiso, botones inactivos + modal explicativo |
+| Voz natural (TTS) | Apagado por defecto (voz local del navegador). Si se activa, envía el texto a un proveedor externo y se explica en la política de privacidad |
 | Creación de secretos | Las claves de IA nunca viajan al cliente; el teléfono/web llama a `/api/*` del servidor |
+| Historial familiar | Opcional (opt-in del adulto), SOLO texto, guardado en el dispositivo (sin audio ni fotos) y borrable desde el panel de papás |
 | Cuota del proveedor | Mensaje amistoso de Tino cuando el proveedor responde `429` |
 
 ## Límites en el servidor
@@ -22,6 +27,8 @@
 - Imagen en `/api/vision`: máximo **4 MB** y solo `jpeg/png/webp`.
 - Texto de chat y visión: truncado a **500 caracteres**.
 - Texto de TTS: **600 caracteres**.
+- Clasificador de riesgo (`lib/safety.ts`): guion fijo seguro sin llamada al proveedor.
+- Guard de respuesta (`isReplySafe`): lista determinista; no gasta llamadas extra.
 
 ## Permisos del dispositivo
 

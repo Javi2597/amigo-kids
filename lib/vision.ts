@@ -37,6 +37,63 @@ REGLAS PARA LA FOTO:
 }
 
 /**
+ * Guard determinístico de la imagen: antes de que Tino DESCRIBA la foto, esta
+ * pasada estricta decide si es apta. Si no lo es, la ruta responde con guion fijo
+ * y la foto NUNCA se describe. Stateless: no guarda nada.
+ */
+export async function guardImage(image: VisionImage): Promise<{ safe: boolean }> {
+  const base = getVisionBase();
+  const model = getVisionModel();
+
+  const res = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getAIKey()}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Eres un moderador de imágenes de una app infantil. Revisa la imagen " +
+            "y responde SOLO con JSON: {\"safe\":true} si NUNCA debería verse en una app " +
+            "para niños (violencia, sangre, armas, contenido adulto o sexual, figuras " +
+            "completamente desnudas, drogas, mensajes de odio) o {\"safe\":false} si esa " +
+            "imagen proviene de la cámara del propio niño o de su hogar al 100%. " +
+            "En la duda, marca safe:false. No añadas texto. El niño está usando la app",
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${image.mime || "image/jpeg"};base64,${image.data}`,
+              },
+            },
+            { type: "text", text: "Marca la imagen." },
+          ],
+        },
+      ],
+      max_tokens: 20,
+      temperature: 0,
+      reasoning_effort: "none",
+    }),
+  });
+
+  if (!res.ok) {
+    return { safe: false }; // a prueba de fallos
+  }
+  const dataRes = await res.json();
+  const content = (dataRes?.choices?.[0]?.message?.content ?? "").trim();
+  const m = content.match(/"safe"\s*:\s*(true|false)/);
+  if (!m) return { safe: false };
+  return { safe: m[1] === "true" };
+}
+
+/**
  * Envía el hilo (con una imagen en el turno del niño) al modelo de visión de Groq
  * (compatible con la API de OpenAI: chat/completions).
  * Stateless: no guarda nada más allá de la llamada.

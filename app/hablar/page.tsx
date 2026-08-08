@@ -1,14 +1,18 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import MicButton from "@/components/MicButton";
 import BackButton from "@/components/BackButton";
 import PhotoButton from "@/components/PhotoButton";
+import ConsentModal, { type ConsentType } from "@/components/ConsentModal";
 import { speak, useSpeech } from "@/lib/speech";
 import { useSettings } from "@/lib/settings";
+import { logChat, markAlert, isLockedToday } from "@/lib/historyLog";
 
 type Msg = { role: "user" | "tino"; text: string; photo?: boolean };
+type Reply = { reply: string; risk?: "sensitive" | "danger" };
 
 export default function Hablar() {
   const { age, level, settings } = useSettings();
@@ -22,30 +26,41 @@ export default function Hablar() {
   ]);
   const [thinking, setThinking] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [consent, setConsent] = useState<ConsentType | null>(null);
+  const [locked, setLocked] = useState<boolean>(() => isLockedToday());
   const scrollRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<{ data: string; mime: string } | null>(null);
 
+  function handleReply(out: Reply) {
+    setThinking(false);
+    setMsgs((prev) => [...prev, { role: "tino", text: out.reply }]);
+    logChat({ role: "tino", text: out.reply, risk: out.risk });
+    if (out.risk === "danger") {
+      if (markAlert()) setLocked(true);
+    }
+    scrollToBottom();
+  }
+
   const pushUser = (text: string) => {
+    if (locked) return;
     setMsgs((prev) => [...prev, { role: "user", text }]);
+    logChat({ role: "user", text });
     setThinking(true);
     const hasImage = Boolean(imageRef.current);
-    replyTo(text, age, level, imageRef.current, hasImage).then((reply) => {
-      setThinking(false);
-      setMsgs((prev) => [...prev, { role: "tino", text: reply }]);
-      scrollToBottom();
-    });
+    replyTo(text, age, level, imageRef.current, hasImage).then(handleReply);
   };
 
   const onPhoto = (photo: { data: string; mime: string }) => {
+    if (!settings.photoConsent) {
+      setConsent("photo");
+      return;
+    }
     imageRef.current = photo;
     setPreview(photo.data);
     setThinking(true);
     setMsgs((prev) => [...prev, { role: "user", text: "", photo: true }]);
-    replyTo("Miré mi foto.", age, level, photo, true).then((reply) => {
-      setThinking(false);
-      setMsgs((prev) => [...prev, { role: "tino", text: reply }]);
-      scrollToBottom();
-    });
+    logChat({ role: "user", text: "📷 le mostró una foto a Tino" });
+    replyTo("Miré mi foto.", age, level, photo, true).then(handleReply);
   };
 
   function clearPhotoContext() {
@@ -143,7 +158,11 @@ export default function Hablar() {
         <div className="flex items-center gap-4">
           <MicButton
             listening={listening}
-            onClick={listening ? stopListening : startListening}
+            onClick={
+              listening
+                ? stopListening
+                : () => (settings.micConsent ? startListening() : setConsent("mic"))
+            }
           />
           <div className="flex flex-col gap-2">
             <PhotoButton onImage={onPhoto} />
@@ -167,18 +186,39 @@ export default function Hablar() {
           Toca el micrófono, di una frase y suelta. Tino te responde con voz.
         </p>
       </div>
+
+      {consent && <ConsentModal type={consent} onClose={() => setConsent(null)} />}
+
+      {locked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface/95 px-6">
+          <div className="max-w-sm text-center">
+            <div className="text-6xl">🛡️</div>
+            <h2 className="mt-2 text-2xl font-bold text-ink">Tino hizo una pausa</h2>
+            <p className="mt-2 text-lg text-soft">
+              Algo importante tiene que ver un adulto. Abrí el panel de papás junto
+              y hablen de esto. Tino los espera.
+            </p>
+            <Link
+              href="/padres"
+              className="mt-5 block rounded-full bg-mascot px-4 py-3 text-lg font-bold text-white active:scale-95"
+            >
+              Abrir el panel de papás
+            </Link>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
 
-// Llama al chat de texto; si hay una foto activa, va por Gemini Vision.
+// Llama al chat de texto; si hay una foto activa, va por el endpoint de visión.
 async function replyTo(
   text: string,
   age: number,
   level: number,
   image: { data: string; mime: string } | null,
   hasImage: boolean
-): Promise<string> {
+): Promise<Reply> {
   try {
     const res = await fetch(hasImage ? "/api/vision" : "/api/chat", {
       method: "POST",
@@ -201,12 +241,14 @@ async function replyTo(
       ),
     });
     const data = await res.json();
-    const reply = data.reply ?? "Uy, no pude responder. ¿Tocas mi botón para pedirme otra vez?";
+    const reply =
+      data.reply ?? "Uy, no pude responder. ¿Tocas mi botón para pedirme otra vez?";
+    const risk = data.safety?.risk === "danger" ? "danger" : undefined;
     speak(reply);
-    return reply;
+    return { reply, risk };
   } catch {
     const reply = "Algo falló con mi voz. ¿Intentamos de nuevo?";
     speak(reply);
-    return reply;
+    return { reply };
   }
 }

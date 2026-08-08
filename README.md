@@ -55,11 +55,16 @@ npx cap open android   # Android Studio / Gradle
 La app Android es un *shell* que carga la web desplegada (`server.url`), así las
 claves de IA quedan solo en el servidor y nunca llegan al teléfono.
 
-## Privacidad
+## Seguridad y privacidad
 
+- **Moderación real**: `lib/safety.ts` clasifica cada mensaje (riesgo alto → guion fijo seguro, sin que el LLM responda libremente) y guard la respuesta de Tino antes de hablar; `/api/vision` tiene una pasada `guardImage` que no describe fotos no aptas.
+- **Espacios de riesgo**: 3 alertas de riesgo alto en un día → pausa automática del chat que solo puede quitar un adulto.
+- **Consentimientos**: micrófono y cámara son opt-in del adulto en el panel de papás; sin permiso los botones quedan inactivos.
 - Las fotos solo viven en memoria mientras se analizan; nunca se guardan en el teléfono ni en el servidor (`/api/vision` es stateless).
-- El historial guarda el texto; la foto se muestra como "📷 le mostró una foto a Tino".
+- Historial familiar opcional (solo texto, sin audio ni fotos) se guarda en el dispositivo y se puede borrar desde `app/padres/historial`.
+- Voz: por defecto se usa la síntesis local del dispositivo (sin envío del texto). La "voz natural" envía texto a un proveedor externo y lo explica la [Política de privacidad](./app/politica-privacidad/page.tsx), también enlazada desde el panel de papás.
 - Las claves de IA (`AI_API_KEY`, etc.) solo están en el servidor (Vercel) o en `.env` local, que no se sube al repo.
+- Tino acompaña momentos de juego y aprendizaje; **no reemplaza la supervisión de un adulto** (ver política de privacidad).
 
 ## Versiones
 

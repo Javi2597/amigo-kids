@@ -35,10 +35,10 @@ function readPrefs(): Prefs {
     const s = raw ? JSON.parse(raw) : {};
     return {
       voiceOn: s.voiceOn !== false,
-      naturalVoice: s.naturalVoice !== false,
+      naturalVoice: s.naturalVoice === true,
     };
   } catch {
-    return { voiceOn: true, naturalVoice: true };
+    return { voiceOn: true, naturalVoice: false };
   }
 }
 

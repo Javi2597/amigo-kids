@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { analyzeImage, type VisionMessage } from "@/lib/vision";
+import { analyzeImage, guardImage, type VisionMessage } from "@/lib/vision";
 import { ageToLevel } from "@/lib/content";
 
 export const runtime = "nodejs";
@@ -7,6 +7,10 @@ export const dynamic = "force-dynamic";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const UNSAFE_IMAGE_REPLY =
+  "Esa imagen no es para mí. Mejor muéstrame otra cosa bonita, y si " +
+  "encontraste algo raro, cuéntale a tus papás.";
 
 type Msg = {
   role?: string;
@@ -27,6 +31,8 @@ export async function POST(req: NextRequest) {
   );
 
   let hasImage = false;
+  let guardBase64 = "";
+  let guardMime = "image/jpeg";
   const messages: VisionMessage[] = [];
 
   for (const m of raw) {
@@ -49,6 +55,8 @@ export async function POST(req: NextRequest) {
       }
       image = { data: m.image.data, mime };
       hasImage = true;
+      guardBase64 = m.image.data;
+      guardMime = mime;
     }
     messages.push({ role: m.role === "tino" ? "assistant" : "user", text, image });
   }
@@ -66,6 +74,13 @@ export async function POST(req: NextRequest) {
     typeof body.topic === "string" && body.topic ? body.topic.slice(0, 40) : undefined;
 
   try {
+    // DOBLE CAPA: clasifica la imagen antes de describirla. Si no es apta, guion
+    // fijo y la foto NUNCA se describe.
+    const guard = await guardImage({ data: guardBase64, mime: guardMime });
+    if (!guard.safe) {
+      return Response.json({ reply: UNSAFE_IMAGE_REPLY });
+    }
+
     const reply = await analyzeImage({ messages, age, level, topic });
     return Response.json({ reply });
   } catch (err) {

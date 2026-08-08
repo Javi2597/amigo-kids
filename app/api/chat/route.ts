@@ -2,6 +2,12 @@ import { NextRequest } from "next/server";
 import { buildKidsPrompt } from "@/lib/kidsPrompt";
 import { ageToLevel, type LevelId } from "@/lib/content";
 import { getAIBase, getAIKey, getAIModel } from "@/lib/ai";
+import {
+  classifyChildText,
+  safetyScript,
+  isReplySafe,
+  UNSAFE_REPLY_FALLBACK,
+} from "@/lib/safety";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +29,19 @@ export async function POST(req: NextRequest) {
 
   if (messages.length === 0) {
     return new Response(JSON.stringify({ error: "Sin mensajes" }), { status: 400 });
+  }
+
+  // Moderación de ENTRADA: el riesgo alto se bloquea antes de gastar una
+  // llamada al proveedor y SIEMPRE usa guion fijo seguro (sin generación libre).
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  if (lastUser) {
+    const verdict = classifyChildText(lastUser.content);
+    if (verdict.risk !== "none") {
+      return Response.json({
+        reply: safetyScript(verdict),
+        safety: { risk: verdict.risk, category: verdict.category },
+      });
+    }
   }
 
   const age = Math.min(12, Math.max(3, Number(body.age) || 5));
@@ -59,7 +78,13 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await upstream.json();
-    const reply: string = data.choices?.[0]?.message?.content ?? "";
+    let reply: string = data.choices?.[0]?.message?.content ?? "";
+
+    // Guard de RESPUESTA: si el texto iba a ser inapropiado, se reemplaza
+    // por un mensaje seguro. Formato de lista determinista (sin llamada extra).
+    if (!isReplySafe(reply)) {
+      reply = UNSAFE_REPLY_FALLBACK;
+    }
 
     return Response.json({ reply });
   } catch (err) {

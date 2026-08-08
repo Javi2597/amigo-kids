@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import BackButton from "@/components/BackButton";
 import { useSettings } from "@/lib/settings";
 import { ageToLevel, LEVEL_INFO } from "@/lib/content";
+import { isLockedToday, resetLock } from "@/lib/historyLog";
+import Link from "next/link";
 
 export default function Padres() {
   const { settings, setSettings } = useSettings();
   const level = ageToLevel(settings.age);
+  const [locked, setLocked] = useState<boolean>(() => isLockedToday());
 
   const set = (patch: Partial<typeof settings>) => setSettings(patch);
 
@@ -104,6 +108,65 @@ export default function Padres() {
         </div>
       </section>
 
+      <section className="rounded-4xl bg-surface p-5 shadow-soft">
+        <h2 className="mb-3 text-xl font-bold text-ink">
+          Privacidad y consentimientos 🌱
+        </h2>
+        <p className="mb-4 rounded-2xl bg-cream px-4 py-3 text-base text-soft">
+          Tino procesa solo lo mínimo para conversar: el texto (a un proveedor de
+          IA), la voz (que se convierte a texto y no se guarda) y, si autorizás la
+          cámara, fotos que se analizan al instante y no se guardan. Nunca se
+          comparten con terceros para publicidad. Leé la{" "}
+          <Link href="/politica-privacidad" className="font-bold text-mascot underline">
+            política de privacidad
+          </Link>
+          .
+        </p>
+        <Row
+          title="Autorizo el micrófono"
+          desc="El niño puede hablarle a Tino. El audio se convierte a texto al instante y no se guarda."
+          checked={settings.micConsent}
+          onChange={(v) => set({ micConsent: v })}
+        />
+        <Row
+          title="Autorizo la cámara / fotos"
+          desc="El niño puede mostrarle fotos a Tino. Se analizan al instante, no se guardan y se quitan al cerrar."
+          checked={settings.photoConsent}
+          onChange={(v) => set({ photoConsent: v })}
+        />
+        <Row
+          title="Guardar historial para revisión"
+          desc="Guarda SOLO el texto (sin audio ni fotos) en este dispositivo para revisar los temas que tocó el niño."
+          checked={settings.logHistory}
+          onChange={(v) => set({ logHistory: v })}
+        />
+      </section>
+
+      <section className="rounded-4xl bg-surface p-5 shadow-soft">
+        <h2 className="mb-3 text-xl font-bold text-ink">Historial y pausa de seguridad 🛡️</h2>
+        <p className="mb-3 text-base text-soft">
+          Revisar los temas que tocó el niño (solo texto, sin audio ni fotos) y
+          gestionar la pausa automática si hubo varias alertas de riesgo.
+        </p>
+        <Link
+          href="/padres/historial"
+          className="block rounded-full bg-cream px-4 py-3 text-center text-base font-bold text-ink active:scale-95"
+        >
+          Ver historial guardado
+        </Link>
+        {locked && (
+          <button
+            onClick={() => {
+              resetLock();
+              setLocked(false);
+            }}
+            className="mt-2 block w-full rounded-full bg-coral px-4 py-3 text-center text-base font-bold text-white active:scale-95"
+          >
+            Quitar la pausa de seguridad
+          </button>
+        )}
+      </section>
+
       <section className="rounded-4xl bg-lemon/25 p-5">
         <h2 className="mb-2 text-lg font-bold text-ink">Consejos de uso 🧡</h2>
         <ul className="list-inside list-disc space-y-1 text-base text-ink">
@@ -111,6 +174,7 @@ export default function Padres() {
           <li>Tino responde en frases cortas y del nivel correcto para cada peque.</li>
           <li>El niño toca el micrófono, dice su frase y suelta.</li>
           <li>Guiad los primeros usos para enseñarle el ritmo.</li>
+          <li>Tino acompaña momentos de juego y aprendizaje: nunca reemplaza la supervisión de un adulto.</li>
           <li>Pueden cambiar la edad cuando crezca y los niveles suben solos.</li>
         </ul>
       </section>

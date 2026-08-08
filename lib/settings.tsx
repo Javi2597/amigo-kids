@@ -17,15 +17,21 @@ export type Settings = {
   quietMode: boolean;
   name: string;
   age: number;
+  micConsent: boolean;
+  photoConsent: boolean;
+  logHistory: boolean;
 };
 
 const DEFAULTS: Settings = {
   voiceOn: true,
-  naturalVoice: true,
+  naturalVoice: false,
   timeLimitMin: 30,
   quietMode: false,
   name: "",
   age: 5,
+  micConsent: false,
+  photoConsent: false,
+  logHistory: false,
 };
 
 type SettingsContextValue = {
