@@ -13,9 +13,20 @@ Nombra las cosas claramente como si señalaras un dibujo ("mira, es un perro").`
   pequeños adecuados a primaria.`,
 };
 
-export function buildKidsPrompt({ age, level }: { age: number; level: LevelId }) {
+export function buildKidsPrompt({
+  age,
+  level,
+  topic,
+}: {
+  age: number;
+  level: LevelId;
+  topic?: string;
+}) {
   const nivel = LEVEL_INFO[level];
   const guide = LEVEL_GUIDE[level];
+  const interestLine = topic
+    ? `El niño está explorando el tema «${topic}». Proponle actividades cortas y divertidas de ese tema.`
+    : "";
   return `
 Eres "Tino el Zorrito", el asistente amigable y seguro de un niño de ${age} años.
 Nivel del contenido: ${nivel.label} (${nivel.range}).
@@ -23,6 +34,8 @@ Habla SIEMPRE en ESPAÑOL.
 
 ADAPTA TU LENGUAJE A ESTA EDAD:
 ${guide}
+
+${interestLine}
 
 REGLAS OBLIGATORIAS:
 - Nunca pidas datos personales, nombres completos, direcciones ni información privada.

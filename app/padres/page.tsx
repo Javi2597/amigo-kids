@@ -5,12 +5,17 @@ import BackButton from "@/components/BackButton";
 import { useSettings } from "@/lib/settings";
 import { ageToLevel, LEVEL_INFO } from "@/lib/content";
 import { isLockedToday, resetLock } from "@/lib/historyLog";
+import { resetProgress } from "@/lib/progress";
 import Link from "next/link";
 
 export default function Padres() {
-  const { settings, setSettings } = useSettings();
+  const { settings, setSettings, profiles, activeProfile, switchProfile, createProfile, removeProfile } =
+    useSettings();
   const level = ageToLevel(settings.age);
   const [locked, setLocked] = useState<boolean>(() => isLockedToday());
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newAge, setNewAge] = useState(5);
 
   const set = (patch: Partial<typeof settings>) => setSettings(patch);
 
@@ -21,6 +26,87 @@ export default function Padres() {
         <h1 className="text-2xl font-bold text-ink">👨‍👩‍👧 Panel de papás</h1>
         <div className="w-16" />
       </div>
+
+      <section className="rounded-4xl bg-surface p-5 shadow-soft">
+        <h2 className="mb-3 text-xl font-bold text-ink">¿Quién usa Amigo Kids? 🧒</h2>
+        <p className="mb-3 text-base text-soft">
+          Cada niño tiene su propia edad, nombre, estrellas y logros. El progreso
+          se guarda solo en este dispositivo.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {profiles.map((p) => (
+            <div
+              key={p.id}
+              className={[
+                "flex items-center gap-2 rounded-full pl-4 pr-2 py-2",
+                p.id === activeProfile?.id
+                  ? "bg-mascot text-white"
+                  : "bg-cream text-ink",
+              ].join(" ")}
+            >
+              <button
+                onClick={() => switchProfile(p.id)}
+                className="text-lg font-bold"
+                aria-label={`Usar perfil ${p.name}`}
+              >
+                {p.name} ({p.age} años)
+              </button>
+              {profiles.length > 1 && (
+                <button
+                  onClick={() => removeProfile(p.id)}
+                  className="tap-target flex h-7 w-7 items-center justify-center rounded-full bg-white/70 text-sm font-bold text-coral"
+                  aria-label={`Borrar perfil ${p.name}`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() => setAdding((v) => !v)}
+            className="rounded-full bg-cream px-4 py-2 text-lg font-bold text-soft"
+          >
+            + Agregar
+          </button>
+        </div>
+
+        {adding && (
+          <div className="mt-4 rounded-2xl bg-cream p-4">
+            <input
+              type="text"
+              value={newName}
+              placeholder="Nombre del niño"
+              className="w-full rounded-full bg-surface px-4 py-3 text-lg text-ink outline-none placeholder:text-soft"
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <div className="mt-3 flex items-baseline gap-3">
+              <span className="text-lg font-bold text-ink">Edad:</span>
+              <span className="text-2xl font-bold text-mascot">{newAge}</span>
+              <input
+                type="range"
+                min={3}
+                max={12}
+                step={1}
+                value={newAge}
+                onChange={(e) => setNewAge(Number(e.target.value))}
+                className="flex-1 accent-mascot"
+                aria-label="Edad del nuevo perfil"
+              />
+            </div>
+            <button
+              onClick={() => {
+                createProfile(newName, newAge);
+                setNewName("");
+                setNewAge(5);
+                setAdding(false);
+              }}
+              className="mt-3 w-full rounded-full bg-mascot px-4 py-3 text-lg font-bold text-white active:scale-95"
+            >
+              Crear perfil y usarlo
+            </button>
+          </div>
+        )}
+      </section>
 
       <section className="rounded-4xl bg-surface p-5 shadow-soft">
         <h2 className="mb-3 text-xl font-bold text-ink">Nombre del peque</h2>
@@ -92,6 +178,12 @@ export default function Padres() {
           checked={settings.quietMode}
           onChange={(v) => set({ quietMode: v })}
         />
+        <Row
+          title="Tabla de la familia (sin presión)"
+          desc="Muestra un ranking local de estrellas entre los perfiles de este dispositivo. Solo se ve con 2+ perfiles y para niños de 10 a 12 años."
+          checked={settings.leaderboardOn}
+          onChange={(v) => set({ leaderboardOn: v })}
+        />
         <div className="mt-4">
           <label className="mb-1 block font-bold text-ink">
             Límite de uso diario: {settings.timeLimitMin} min
@@ -151,9 +243,19 @@ export default function Padres() {
         <Link
           href="/padres/historial"
           className="block rounded-full bg-cream px-4 py-3 text-center text-base font-bold text-ink active:scale-95"
+          >
+            Ver historial guardado
+          </Link>
+        <button
+          onClick={() => {
+            if (confirm("¿Borrar estrellas y logros del perfil activo? Esta acción no se puede deshacer.")) {
+              resetProgress();
+            }
+          }}
+          className="mt-2 block w-full rounded-full bg-cream px-4 py-3 text-center text-base font-bold text-soft active:scale-95"
         >
-          Ver historial guardado
-        </Link>
+          Borrar progreso de {activeProfile?.name ?? "este perfil"}
+        </button>
         {locked && (
           <button
             onClick={() => {

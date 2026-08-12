@@ -64,6 +64,13 @@ export default function PoliticaPrivacidad() {
           en el <strong>dispositivo</strong> de la familia (sin audio ni fotos) y se
           puede borrar en cualquier momento desde el panel de papás.
         </p>
+        <p className="mb-2 text-base text-ink">
+          El <strong>progreso</strong> (estrellas, medallas, logros, misiones y
+          desempeño por tema) y los <strong>perfiles</strong> de cada niño también se
+          guardan <strong>solo en el dispositivo</strong>, nunca en el servidor, y se
+          pueden borrar desde el panel de papás. La tabla de la familia es local y
+          solo la activa un adulto.
+        </p>
         <p className="text-base text-ink">
           Como padre/madre podés revisar, borrar o desactivar el historial, los
           permisos de micrófono y de cámara en el panel de papás. Para otros
@@ -96,7 +103,7 @@ export default function PoliticaPrivacidad() {
           canal del proyecto (GitHub) o el correo indicado en el panel de papás.
         </p>
         <p className="mt-2 text-sm text-soft">
-          Última actualización: 8 de agosto de 2026.
+          Última actualización: 12 de agosto de 2026.
         </p>
       </section>
 

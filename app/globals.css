@@ -40,9 +40,39 @@ body {
   50% { transform: translateY(-10px); }
 }
 
+@keyframes star-float {
+  0% { transform: translateY(40px) scale(0.4) rotate(-20deg); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-170px) scale(1.2) rotate(20deg); opacity: 0; }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes star-pop {
+  0% { transform: scale(0.2) translateY(10px); opacity: 0; }
+  45% { transform: scale(1.35) translateY(-6px); opacity: 1; }
+  100% { transform: scale(1) translateY(-22px); opacity: 0; }
+}
+
 @layer utilities {
   .animate-blink { animation: blink 4s infinite; transform-origin: 100px 82px; }
   .animate-bounce-soft { animation: bounce-soft 2.2s ease-in-out infinite; }
+
+  .celebration-star {
+    animation: star-float 1.6s ease-out infinite;
+    font-size: 3rem;
+  }
+  .celebration-pop {
+    animation: pop-in 0.4s ease-out both;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  }
+  .star-pop {
+    animation: star-pop 0.9s ease-out both;
+  }
 
   .tap-target {
     min-height: 44px;

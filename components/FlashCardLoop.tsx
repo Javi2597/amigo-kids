@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { speak } from "@/lib/speech";
+import { addStars, recordFlashcardSeen } from "@/lib/progress";
+import { sfx } from "@/lib/sounds";
+import Celebration from "@/components/Celebration";
 
 type Item = {
   word: string;
@@ -33,19 +36,35 @@ function wordSize(word: string): string {
 export default function FlashCardLoop({ items, prompt, topic }: FlashCardLoopProps) {
   const [index, setIndex] = useState(0);
   const [imgFailed, setImgFailed] = useState(false);
+  const [seenWords, setSeenWords] = useState<Set<string>>(new Set());
+  const [celebrate, setCelebrate] = useState(false);
 
   useEffect(() => {
     setImgFailed(false);
   }, [index]);
+
+  useEffect(() => {
+    setSeenWords(new Set());
+    setCelebrate(false);
+  }, [items]);
 
   const item = items[index % items.length];
   const imageSrc = topic ? `/images/${topic}/${slugify(item.word)}.jpg` : null;
   const showImage = Boolean(imageSrc) && !imgFailed;
 
   const next = () => {
-    const i = (index + 1) % items.length;
-    setIndex(i);
-    speak(items[i].word);
+    const nextIndex = (index + 1) % items.length;
+    setIndex(nextIndex);
+    speak(items[nextIndex].word);
+    if (topic) recordFlashcardSeen(topic);
+    const updated = new Set(seenWords);
+    updated.add(items[nextIndex].word);
+    setSeenWords(updated);
+    if (updated.size === items.length && seenWords.size < items.length) {
+      sfx.star();
+      addStars(1);
+      setCelebrate(true);
+    }
   };
 
   const say = () => speak(item.word);
@@ -94,6 +113,11 @@ export default function FlashCardLoop({ items, prompt, topic }: FlashCardLoopPro
       >
         Siguiente →
       </button>
+      <Celebration
+        show={celebrate}
+        text="¡Completaste el tema! ⭐"
+        onDone={() => setCelebrate(false)}
+      />
     </div>
   );
 }

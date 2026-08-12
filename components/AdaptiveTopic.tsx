@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import FlashCardLoop from "@/components/FlashCardLoop";
 import PhotoButton from "@/components/PhotoButton";
+import ProgressBar from "@/components/ProgressBar";
 import { useSettings } from "@/lib/settings";
-import { getTopicContent, LEVEL_INFO } from "@/lib/content";
+import { getTopicContent, LEVEL_INFO, TOPIC_INFO } from "@/lib/content";
 import { speak } from "@/lib/speech";
 
 export default function AdaptiveTopic({ topic }: { topic: string }) {
@@ -46,6 +47,13 @@ export default function AdaptiveTopic({ topic }: { topic: string }) {
 
   return (
     <>
+      <ProgressBar
+        topic={topic}
+        title={`Tu avance en ${
+          TOPIC_INFO[topic as keyof typeof TOPIC_INFO]?.title ?? topic
+        }`}
+      />
+      <div className="h-4" />
       <FlashCardLoop items={content.items} prompt={content.prompt} topic={topic} />
       <p className="mt-3 text-center text-sm font-semibold text-soft">
         Nivel {level} · {LEVEL_INFO[level].label} ({LEVEL_INFO[level].range})

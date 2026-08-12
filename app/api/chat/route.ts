@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 const MAX_MESSAGES = 8;
 
 export async function POST(req: NextRequest) {
-  let body: { messages?: { role: string; content: string }[]; age?: number };
+  let body: { messages?: { role: string; content: string }[]; age?: number; topic?: string };
   try {
     body = await req.json();
   } catch {
@@ -46,7 +46,8 @@ export async function POST(req: NextRequest) {
 
   const age = Math.min(12, Math.max(3, Number(body.age) || 5));
   const level: LevelId = ageToLevel(age);
-  const system = buildKidsPrompt({ age, level });
+  const topic = body.topic ? String(body.topic).slice(0, 60) : undefined;
+  const system = buildKidsPrompt({ age, level, topic });
 
   const conversations = [
     { role: "system", content: system },

@@ -9,6 +9,9 @@ import PhotoButton from "@/components/PhotoButton";
 import ConsentModal, { type ConsentType } from "@/components/ConsentModal";
 import { speak, useSpeech } from "@/lib/speech";
 import { useSettings } from "@/lib/settings";
+import { useProgress } from "@/lib/progress";
+import { suggestTopics } from "@/lib/suggest";
+import { ALL_TOPIC_IDS, TOPIC_INFO } from "@/lib/content";
 import { logChat, markAlert, isLockedToday } from "@/lib/historyLog";
 
 type Msg = { role: "user" | "tino"; text: string; photo?: boolean };
@@ -16,6 +19,11 @@ type Reply = { reply: string; risk?: "sensitive" | "danger" };
 
 export default function Hablar() {
   const { age, level, settings } = useSettings();
+  const progress = useProgress();
+  const suggestedId = suggestTopics(progress, ALL_TOPIC_IDS, 1)[0];
+  const suggestedTopic = suggestedId
+    ? TOPIC_INFO[suggestedId as keyof typeof TOPIC_INFO]?.title
+    : undefined;
   const [msgs, setMsgs] = useState<Msg[]>([
     {
       role: "tino",
@@ -47,7 +55,7 @@ export default function Hablar() {
     logChat({ role: "user", text });
     setThinking(true);
     const hasImage = Boolean(imageRef.current);
-    replyTo(text, age, level, imageRef.current, hasImage).then(handleReply);
+    replyTo(text, age, level, imageRef.current, hasImage, suggestedTopic).then(handleReply);
   };
 
   const onPhoto = (photo: { data: string; mime: string }) => {
@@ -60,7 +68,7 @@ export default function Hablar() {
     setThinking(true);
     setMsgs((prev) => [...prev, { role: "user", text: "", photo: true }]);
     logChat({ role: "user", text: "📷 le mostró una foto a Tino" });
-    replyTo("Miré mi foto.", age, level, photo, true).then(handleReply);
+    replyTo("Miré mi foto.", age, level, photo, true, suggestedTopic).then(handleReply);
   };
 
   function clearPhotoContext() {
@@ -217,7 +225,8 @@ async function replyTo(
   age: number,
   level: number,
   image: { data: string; mime: string } | null,
-  hasImage: boolean
+  hasImage: boolean,
+  topic?: string
 ): Promise<Reply> {
   try {
     const res = await fetch(hasImage ? "/api/vision" : "/api/chat", {
@@ -232,11 +241,13 @@ async function replyTo(
               ],
               age,
               level,
+              topic,
             }
           : {
               messages: [{ role: "user", content: text }],
               age,
               level,
+              topic,
             }
       ),
     });

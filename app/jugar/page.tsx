@@ -1,5 +1,7 @@
 import BackButton from "@/components/BackButton";
 import AdaptiveQuizzes from "@/components/AdaptiveQuizzes";
+import PuzzlesSection from "@/components/PuzzlesSection";
+import ChallengeSection from "@/components/ChallengeSection";
 
 export default function Jugar() {
   return (
@@ -13,6 +15,9 @@ export default function Jugar() {
       <div className="grid grid-cols-1 gap-6 rounded-4xl bg-surface p-6 shadow-soft">
         <AdaptiveQuizzes />
       </div>
+
+      <ChallengeSection />
+      <PuzzlesSection />
     </main>
   );
 }

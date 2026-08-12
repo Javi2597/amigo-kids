@@ -2,23 +2,33 @@
 
 import { useState } from "react";
 import { speak } from "@/lib/speech";
+import { recordQuiz } from "@/lib/progress";
+import { sfx } from "@/lib/sounds";
 
 type QuizProps = {
   question: string;
   options: string[];
   answer: string;
   emoji: string;
+  topic?: string;
 };
 
-export default function MiniQuiz({ question, options, answer, emoji }: QuizProps) {
+export default function MiniQuiz({ question, options, answer, emoji, topic }: QuizProps) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [starPop, setStarPop] = useState(false);
   const correct = picked === answer;
 
   const choose = (opt: string) => {
     setPicked(opt);
-    if (opt === answer) {
+    const isCorrect = opt === answer;
+    recordQuiz(topic ?? "juego", isCorrect);
+    if (isCorrect) {
+      sfx.correct();
       speak("¡Muy bien! ¡Correcto!");
+      setStarPop(true);
+      setTimeout(() => setStarPop(false), 950);
     } else {
+      sfx.wrong();
       speak("Casi. Inténtalo otra vez.");
     }
   };
@@ -27,7 +37,17 @@ export default function MiniQuiz({ question, options, answer, emoji }: QuizProps
 
   return (
     <div className="flex flex-col items-center gap-5">
-      <p className="text-3xl font-bold text-ink">{emoji}</p>
+      <div className="relative">
+        <p className="text-3xl font-bold text-ink">{emoji}</p>
+        {starPop && (
+          <span
+            aria-hidden
+            className="star-pop pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-4xl"
+          >
+            ⭐
+          </span>
+        )}
+      </div>
       <p className="text-2xl font-semibold text-ink text-center">{question}</p>
       <div className="grid w-full max-w-sm grid-cols-2 gap-3">
         {options.map((opt) => {

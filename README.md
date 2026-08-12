@@ -2,6 +2,19 @@
 
 Asistente de voz amigable para niños de 3 a 12 años (con la mascota Tino el Zorrito): aprende vocabulario, juega y organiza rutinas diarias.
 
+## Estrategias por edad
+
+Todo se adapta con la edad de cada perfil (panel de papás → agregar perfiles):
+
+| Edad | Qué activa |
+|---|---|
+| **3–6** | Recompensas inmediatas: estrellas animadas, sonidos y celebraciones al acertar, completar tarjetas o rutinas. Botones grandes, voz y repetición. |
+| **7–9** | Gamificación: misiones diarias, medallas, barras de progreso por tema, historias interactivas (elige tu camino) y retos de lógica (secuencias y clasificación). |
+| **10–12** | Retos contra el tiempo, logros desbloqueables, proyectos de investigación y creación, y tabla de la familia opcional (local, sin presión, activable por papás). |
+| **Todas** | Tino sugiere temas a repasar o explorar según el desempeño y adapta el chat al nivel. |
+
+El progreso (estrellas, medallas, logros, misiones, desempeño) y los perfiles se guardan **solo en el dispositivo** (localStorage), nunca en el servidor. Cada niño de la familia tiene su propio progreso.
+
 ## Plataformas
 
 | Plataforma | Cómo se instala | Micrófono (escuchar al niño) |

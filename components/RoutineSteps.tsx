@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { speak } from "@/lib/speech";
+import { addStars } from "@/lib/progress";
+import { sfx } from "@/lib/sounds";
+import Celebration from "@/components/Celebration";
 
 type Routine = {
   id: string;
@@ -12,6 +15,7 @@ type Routine = {
 
 export default function RoutineSteps({ steps }: { steps: Routine[] }) {
   const [done, setDone] = useState<Set<string>>(new Set());
+  const [celebrate, setCelebrate] = useState(false);
 
   const toggle = (step: Routine) => {
     setDone((prev) => {
@@ -27,6 +31,15 @@ export default function RoutineSteps({ steps }: { steps: Routine[] }) {
   };
 
   const allDone = steps.length > 0 && done.size === steps.length;
+
+  useEffect(() => {
+    if (allDone && !celebrate) {
+      sfx.fanfare();
+      addStars(1);
+      setCelebrate(true);
+    }
+    if (!allDone) setCelebrate(false);
+  }, [allDone, celebrate]);
 
   return (
     <div className="flex flex-col gap-3 w-full max-w-md">
@@ -66,6 +79,11 @@ export default function RoutineSteps({ steps }: { steps: Routine[] }) {
           ¡Lo lograste, estrella! ⭐
         </div>
       )}
+      <Celebration
+        show={celebrate}
+        text="¡Rutina completada! 🌟"
+        onDone={() => setCelebrate(false)}
+      />
     </div>
   );
 }
