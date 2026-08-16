@@ -2,6 +2,9 @@
 
 Asistente de voz amigable para niños de 3 a 12 años (con la mascota Tino el Zorrito): aprende vocabulario, juega y organiza rutinas diarias.
 
+- **Web / PWA:** desplegada en Vercel (ver [Plataformas](#plataformas)).
+- [Política de privacidad](./app/politica-privacidad/page.tsx), también enlazada desde el panel de papás.
+
 ## Estrategias por edad
 
 Todo se adapta con la edad de cada perfil (panel de papás → agregar perfiles):
@@ -15,6 +18,28 @@ Todo se adapta con la edad de cada perfil (panel de papás → agregar perfiles)
 
 El progreso (estrellas, medallas, logros, misiones, desempeño) y los perfiles se guardan **solo en el dispositivo** (localStorage), nunca en el servidor. Cada niño de la familia tiene su propio progreso.
 
+## Empezar / Desarrollo
+
+```bash
+npm install
+npm run dev        # web en http://127.0.0.1:3000
+```
+
+Variables de entorno: copia `.env.example` a `.env` y pon tu clave de **Groq** (`AI_API_KEY`). Cubren **chat y visión de fotos**; el resto funciona sin claves:
+
+- **Reconocimiento de voz:** usa las APIs del dispositivo (Web Speech API en el navegador, plugin de Capacitor en Android), sin clave de IA.
+- **Voz (TTS):** por defecto síntesis local del dispositivo; la "voz natural" va al `GET /api/tts` del servidor (sin clave).
+- **Proveedor de respaldo (opcional):** si configurás `FALLBACK_AI_API_KEY` (recomendado: Gemini de Google AI Studio, gratis), cuando Groq agota su límite diario el chat pasa automáticamente al respaldo y, si también falla, Tino responde con mini-juegos locales desde el contenido de la app (sin IA). Las fotos **solo** van a Groq, nunca a un tercer proveedor.
+
+Scripts útiles:
+
+```bash
+npm run typecheck   # chequeo de tipos
+npm run build       # build de producción
+npm run images      # descargar ilustraciones de las flashcards
+npm run icons       # regenerar iconos de la PWA
+```
+
 ## Plataformas
 
 | Plataforma | Cómo se instala | Micrófono (escuchar al niño) |
@@ -25,6 +50,17 @@ El progreso (estrellas, medallas, logros, misiones, desempeño) y los perfiles s
 | **Escritorio** | PWA instalada desde Chrome/Edge | Web Speech API |
 
 > Las fotos funcionan en todas las plataformas: se comprimen en el dispositivo y Tino las analiza sin guardarlas.
+
+## App nativa Android
+
+```bash
+npm run typecheck && npm run build
+APP_URL=https://tu-dominio.vercel.app npx cap sync android
+npx cap open android   # Android Studio / Gradle
+```
+
+La app Android es un *shell* que carga la web desplegada (`server.url`), así las
+claves de IA quedan solo en el servidor y nunca llegan al teléfono.
 
 ## Permisos por dispositivo
 
@@ -48,28 +84,6 @@ Declarados en `android/app/src/main/AndroidManifest.xml`:
 ### iOS (actualmente solo PWA)
 No necesita permisos extra en Safari. Si algún día se genera la app nativa (`npx cap add ios`), declarar en `Info.plist`: `NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription`, `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`.
 
-## Desarrollo
-
-```bash
-npm install
-npm run dev        # web en http://127.0.0.1:3000
-```
-
-Variables de entorno: copia `.env.example` a `.env` y pon tu clave de Groq. Cubren chat, TTS, reconocimiento de voz y visión.
-
-**Proveedor de respaldo (opcional):** si configurás `FALLBACK_AI_API_KEY` (recomendado: Gemini de Google AI Studio, gratis), cuando Groq agota su límite diario el chat pasa automáticamente al respaldo y, si también falla, Tino responde con mini-juegos locales desde el contenido de la app (sin IA). Las fotos **solo** van a Groq, nunca a un tercer proveedor.
-
-## App nativa Android
-
-```bash
-npm run typecheck && npm run build
-APP_URL=https://tu-dominio.vercel.app npx cap sync android
-npx cap open android   # Android Studio / Gradle
-```
-
-La app Android es un *shell* que carga la web desplegada (`server.url`), así las
-claves de IA quedan solo en el servidor y nunca llegan al teléfono.
-
 ## Seguridad y privacidad
 
 - **Moderación real**: `lib/safety.ts` clasifica cada mensaje (riesgo alto → guion fijo seguro, sin que el LLM responda libremente) y guard la respuesta de Tino antes de hablar; `/api/vision` integra una pasada de seguridad en la misma llamada y nunca describe fotos no aptas (una sola llamada por foto evita caer en 429 del plan gratuito).
@@ -78,7 +92,7 @@ claves de IA quedan solo en el servidor y nunca llegan al teléfono.
 - Las fotos solo viven en memoria mientras se analizan; nunca se guardan en el teléfono ni en el servidor (`/api/vision` es stateless).
 - Historial familiar opcional (solo texto, sin audio ni fotos) se guarda en el dispositivo y se puede borrar desde `app/padres/historial`.
 - Voz: por defecto se usa la síntesis local del dispositivo (sin envío del texto). La "voz natural" envía texto a un proveedor externo y lo explica la [Política de privacidad](./app/politica-privacidad/page.tsx), también enlazada desde el panel de papás.
-- Las claves de IA (`AI_API_KEY`, etc.) solo están en el servidor (Vercel) o en `.env` local, que no se sube al repo.
+- Las claves de IA (`AI_API_KEY`, `AI_VISION_MODEL`, `FALLBACK_AI_API_KEY`, etc.) solo están en el servidor (Vercel) o en `.env` local, que no se sube al repo.
 - Tino acompaña momentos de juego y aprendizaje; **no reemplaza la supervisión de un adulto** (ver política de privacidad).
 
 ## Versiones

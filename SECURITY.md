@@ -3,7 +3,7 @@
 ## Claves y secretos
 
 - Nunca se suben `.env`, `.env.local` ni ninguna clave al repositorio.
-- Solo el servidor tiene las claves de IA (variables de entorno en Vercel): `AI_API_KEY`, `AI_STT_*`, `AI_VISION_MODEL`.
+- Solo el servidor tiene las claves de IA (variables de entorno en Vercel): `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_VISION_MODEL`, `AI_VISION_BASE_URL`, `FALLBACK_AI_*`.
 - `GEMINI_API_KEY` se usa únicamente para la auditoría local de imágenes (`scripts/verify-images.mjs`) y no se sube.
 - `apis-banco-imagenes.txt` (claves de bancos de imágenes) está excluida del repo vía `.gitignore`.
 

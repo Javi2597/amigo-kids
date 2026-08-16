@@ -59,6 +59,7 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
   const [infoOpen, setInfoOpen] = useState(false);
   const [infoText, setInfoText] = useState<string>("");
   const [infoBusy, setInfoBusy] = useState(false);
+  const [infoMode, setInfoMode] = useState<"vision" | "chat">("vision");
 
   useEffect(() => {
     setImgFailed(false);
@@ -103,20 +104,43 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
     setInfoBusy(true);
     setInfoText("");
     try {
-      if (!imageSrc) {
-        setInfoText("¡Uy! No tengo una imagen de esta tarjeta.");
+      const img =
+        imageSrc && (await imageToDataUrl(imageSrc).catch(() => null));
+      if (img) {
+        setInfoMode("vision");
+        const res = await fetch("/api/vision", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "user",
+                text: `Quiero saber más sobre "${item.word}". Contame qué ves.`,
+                image: { data: img.data, mime: img.mime },
+              },
+            ],
+            age,
+            level,
+            topic,
+          }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        const reply =
+          payload.reply ?? "¡Uy! No pude mirar esta imagen. ¿Intentamos otra vez?";
+        setInfoText(reply);
+        speak(reply);
         return;
       }
-      const { data, mime } = await imageToDataUrl(imageSrc);
-      const res = await fetch("/api/vision", {
+
+      setInfoMode("chat");
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [
             {
               role: "user",
-              text: `Quiero saber más sobre "${item.word}". Contame qué ves.`,
-              image: { data, mime },
+              content: `¿Qué me contás sobre "${item.word}"?`,
             },
           ],
           age,
@@ -126,11 +150,11 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
       });
       const payload = await res.json().catch(() => ({}));
       const reply =
-        payload.reply ?? "¡Uy! No pude mirar esta imagen. ¿Intentamos otra vez?";
+        payload.reply ?? "¡Uy! No pude pensarlo bien. ¿Intentamos otra vez?";
       setInfoText(reply);
       speak(reply);
     } catch {
-      const reply = "¡Ups! Algo salió mal al mirar la imagen. ¡Otro intento!";
+      const reply = "¡Ups! Algo salió mal. ¡Otro intento!";
       setInfoText(reply);
       speak(reply);
     } finally {
@@ -178,22 +202,22 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
           )}
         </button>
 
-        {showImage && (
-          <button
-            onClick={askTinoAboutImage}
-            className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-xl shadow-md transition-transform active:scale-90"
-            aria-label={`Saber más sobre ${item.word}`}
-            title={`Saber más sobre ${item.word}`}
-          >
-            ℹ️
-          </button>
-        )}
+        <button
+          onClick={askTinoAboutImage}
+          className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-xl shadow-md transition-transform active:scale-90"
+          aria-label={`Saber más sobre ${item.word}`}
+          title={`Saber más sobre ${item.word}`}
+        >
+          ℹ️
+        </button>
 
         {infoOpen && (
-          <div className="absolute right-0 top-14 z-20 w-full rounded-3xl border-2 border-lemon/50 bg-white p-4 shadow-soft">
+          <div className="mt-2 w-full rounded-3xl border-2 border-lemon/50 bg-white p-4 shadow-soft">
             <div className="flex items-start justify-between gap-2">
               <p className="text-base font-bold text-ink">
-                Tino mira la imagen… 🔍
+                {infoMode === "vision"
+                  ? "Tino mira la imagen… 🔍"
+                  : "Tino te cuenta… 💬"}
               </p>
               <button
                 onClick={closeInfo}
