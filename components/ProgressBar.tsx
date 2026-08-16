@@ -5,14 +5,21 @@ import { useProgress } from "@/lib/progress";
 export default function ProgressBar({
   topic,
   title,
+  value,
 }: {
   topic: string;
   title: string;
+  value?: number;
 }) {
   const { topics } = useProgress();
   const p = topics[topic] ?? { seen: 0, correct: 0, wrong: 0 };
   const total = p.correct + p.wrong;
-  const pct = total > 0 ? Math.round((p.correct / total) * 100) : 0;
+  const pct =
+    value !== undefined
+      ? Math.min(100, Math.max(0, Math.round(value)))
+      : total > 0
+      ? Math.round((p.correct / total) * 100)
+      : 0;
 
   return (
     <div className="w-full">

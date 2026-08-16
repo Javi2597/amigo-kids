@@ -93,6 +93,10 @@ export function deleteProfile(id: string): void {
     list = [{ id: genId(), name: "Peque", age: 5 }];
   }
   save(list);
+  // Limpia el progreso huérfano de ese perfil para no acumular claves.
+  try {
+    localStorage.removeItem(`tino-progress:${id}`);
+  } catch {}
   try {
     const active = activeProfileId();
     if (active === id) {

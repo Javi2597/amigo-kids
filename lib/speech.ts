@@ -68,7 +68,7 @@ export function speak(text: string, lang = "es-ES") {
 
   // Siempre detiene lo anterior (audio natural + síntesis).
   stopAudio();
-  window.speechSynthesis.cancel();
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
   const clean = String(text).trim();
   if (!clean) return;

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import BackButton from "@/components/BackButton";
+import PinGate from "@/components/PinGate";
+import PinConfirm from "@/components/PinConfirm";
 import { clearHistory, getHistory, type HistoryEntry } from "@/lib/historyLog";
 
 const RISK_LABEL: Record<string, string> = {
@@ -11,6 +13,10 @@ const RISK_LABEL: Record<string, string> = {
 
 export default function Historial() {
   const [entries, setEntries] = useState<HistoryEntry[]>(() => getHistory());
+  const [unlocked, setUnlocked] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  if (!unlocked) return <PinGate onUnlocked={() => setUnlocked(true)} />;
 
   const sorted = [...entries].sort((a, b) => b.ts - a.ts);
 
@@ -68,14 +74,23 @@ export default function Historial() {
 
       {sorted.length > 0 && (
         <button
-          onClick={() => {
-            clearHistory();
-            setEntries([]);
-          }}
+          onClick={() => setConfirmClear(true)}
           className="rounded-full bg-coral px-4 py-3 text-lg font-bold text-white active:scale-95"
         >
           Borrar todo el historial
         </button>
+      )}
+
+      {confirmClear && (
+        <PinConfirm
+          title="Borrar historial"
+          message="Se va a borrar todo el historial guardado. Esta acción no se puede deshacer."
+          onClose={() => setConfirmClear(false)}
+          onConfirm={() => {
+            clearHistory();
+            setEntries([]);
+          }}
+        />
       )}
     </main>
   );

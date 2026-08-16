@@ -2,22 +2,93 @@
 
 import { useState } from "react";
 import BackButton from "@/components/BackButton";
+import PinGate from "@/components/PinGate";
+import PinConfirm from "@/components/PinConfirm";
 import { useSettings } from "@/lib/settings";
 import { ageToLevel, LEVEL_INFO } from "@/lib/content";
 import { isLockedToday, resetLock } from "@/lib/historyLog";
 import { resetProgress } from "@/lib/progress";
+import { todaySeconds, resetUsageToday } from "@/lib/timeLimit";
+import { exportData, validateBackup, applyBackup } from "@/lib/backup";
 import Link from "next/link";
+
+type DestructiveAction =
+  | { kind: "remove-profile"; id: string; name: string }
+  | { kind: "reset-progress" }
+  | { kind: "reset-lock" }
+  | { kind: "reset-usage" }
+  | { kind: "restore" };
 
 export default function Padres() {
   const { settings, setSettings, profiles, activeProfile, switchProfile, createProfile, removeProfile } =
     useSettings();
   const level = ageToLevel(settings.age);
+  const [unlocked, setUnlocked] = useState(false);
   const [locked, setLocked] = useState<boolean>(() => isLockedToday());
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newAge, setNewAge] = useState(5);
+  const [restoreMsg, setRestoreMsg] = useState("");
+  const [pendingAction, setPendingAction] = useState<DestructiveAction | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<Record<string, string> | null>(null);
 
   const set = (patch: Partial<typeof settings>) => setSettings(patch);
+
+  function runDestructive() {
+    if (!pendingAction) return;
+    const action = pendingAction;
+    setPendingAction(null);
+    switch (action.kind) {
+      case "remove-profile":
+        removeProfile(action.id);
+        break;
+      case "reset-progress":
+        resetProgress();
+        break;
+      case "reset-lock":
+        resetLock();
+        setLocked(false);
+        break;
+      case "reset-usage":
+        resetUsageToday();
+        break;
+      case "restore":
+        if (pendingRestore) {
+          try {
+            applyBackup(pendingRestore);
+            setRestoreMsg("✅ Copia restaurada. Recargá la página para ver los cambios.");
+          } catch {
+            setRestoreMsg("No se pudo restaurar la copia.");
+          }
+        }
+        setPendingRestore(null);
+        break;
+    }
+  }
+
+  const destructiveCopy: { title: string; message: string } | null = (() => {
+    if (!pendingAction) return null;
+    switch (pendingAction.kind) {
+      case "remove-profile":
+        return {
+          title: "Borrar perfil",
+          message: `Se va a borrar a ${pendingAction.name} y todo su progreso. Esta acción no se puede deshacer.`,
+        };
+      case "reset-progress":
+        return {
+          title: "Borrar progreso",
+          message: `Se borrarán las estrellas y logros de ${activeProfile?.name ?? "este perfil"}. No se puede deshacer.`,
+        };
+      case "reset-lock":
+        return { title: "Quitar la pausa", message: "Se levantará la pausa de seguridad de hoy." };
+      case "reset-usage":
+        return { title: "Reiniciar tiempo", message: "Se reinicia el tiempo de uso acumulado hoy." };
+      case "restore":
+        return { title: "Restaurar copia", message: "Se reemplazará TODO el contenido actual por el respaldo elegido." };
+    }
+  })();
+
+  if (!unlocked) return <PinGate onUnlocked={() => setUnlocked(true)} />;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 px-5 py-6">
@@ -53,7 +124,7 @@ export default function Padres() {
               </button>
               {profiles.length > 1 && (
                 <button
-                  onClick={() => removeProfile(p.id)}
+                  onClick={() => setPendingAction({ kind: "remove-profile", id: p.id, name: p.name })}
                   className="tap-target flex h-7 w-7 items-center justify-center rounded-full bg-white/70 text-sm font-bold text-coral"
                   aria-label={`Borrar perfil ${p.name}`}
                 >
@@ -197,6 +268,57 @@ export default function Padres() {
             onChange={(e) => set({ timeLimitMin: Number(e.target.value) })}
             className="w-full accent-mascot"
           />
+          <p className="mt-2 text-sm text-soft">
+            Hoy usó Tino {formatMinutes(todaySeconds())} de {settings.timeLimitMin} min.
+          </p>
+        </div>
+        <button
+          onClick={() => setPendingAction({ kind: "reset-usage" })}
+          className="mt-2 w-full rounded-full bg-cream px-4 py-3 text-center text-base font-bold text-soft active:scale-95"
+        >
+          Reiniciar el tiempo de uso de hoy
+        </button>
+      </section>
+
+      <section className="rounded-4xl bg-surface p-5 shadow-soft">
+        <h2 className="mb-2 text-xl font-bold text-ink">Respaldo de datos 💾</h2>
+        <p className="mb-3 text-base text-soft">
+          Descargás una copia con los perfiles, estrellas y logros de este
+          dispositivo, y podés restaurarla en otro o si se borra.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={exportData}
+            className="rounded-full bg-mascot px-4 py-3 text-center text-base font-bold text-white active:scale-95"
+          >
+            Guardar copia (descargar)
+          </button>
+          <label className="rounded-full bg-cream px-4 py-3 text-center text-base font-bold text-ink active:scale-95">
+            Restaurar una copia
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                const res = validateBackup(text);
+                e.target.value = "";
+                if (!res.ok || !res.data) {
+                  setRestoreMsg(`No se puede restaurar: ${res.error ?? "archivo inválido"}`);
+                  return;
+                }
+                setPendingRestore(res.data);
+                setPendingAction({ kind: "restore" });
+              }}
+            />
+          </label>
+          {restoreMsg && (
+            <p className="rounded-2xl bg-cream px-4 py-2 text-sm font-semibold text-soft">
+              {restoreMsg}
+            </p>
+          )}
         </div>
       </section>
 
@@ -247,21 +369,14 @@ export default function Padres() {
             Ver historial guardado
           </Link>
         <button
-          onClick={() => {
-            if (confirm("¿Borrar estrellas y logros del perfil activo? Esta acción no se puede deshacer.")) {
-              resetProgress();
-            }
-          }}
+          onClick={() => setPendingAction({ kind: "reset-progress" })}
           className="mt-2 block w-full rounded-full bg-cream px-4 py-3 text-center text-base font-bold text-soft active:scale-95"
         >
           Borrar progreso de {activeProfile?.name ?? "este perfil"}
         </button>
         {locked && (
           <button
-            onClick={() => {
-              resetLock();
-              setLocked(false);
-            }}
+            onClick={() => setPendingAction({ kind: "reset-lock" })}
             className="mt-2 block w-full rounded-full bg-coral px-4 py-3 text-center text-base font-bold text-white active:scale-95"
           >
             Quitar la pausa de seguridad
@@ -280,8 +395,27 @@ export default function Padres() {
           <li>Pueden cambiar la edad cuando crezca y los niveles suben solos.</li>
         </ul>
       </section>
+
+      {pendingAction && destructiveCopy && (
+        <PinConfirm
+          title={destructiveCopy.title}
+          message={destructiveCopy.message}
+          onClose={() => setPendingAction(null)}
+          onConfirm={runDestructive}
+        />
+      )}
     </main>
   );
+}
+
+function pad(n: number): string {
+  return String(Math.floor(n)).padStart(2, "0");
+}
+
+function formatMinutes(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${pad(m)}:${pad(s)}`;
 }
 
 function Row({

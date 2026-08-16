@@ -21,6 +21,10 @@ export default function MicButton({
     if (listening) {
       const el = ringRef.current;
       if (!el) return;
+      const reduce =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) return;
       let raf = 0;
       const loop = () => {
         const t = performance.now() / 320;

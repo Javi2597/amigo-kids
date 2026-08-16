@@ -1,18 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import MicButton from "@/components/MicButton";
 import BackButton from "@/components/BackButton";
 import PhotoButton from "@/components/PhotoButton";
 import ConsentModal, { type ConsentType } from "@/components/ConsentModal";
+import Modal from "@/components/Modal";
 import { speak, useSpeech } from "@/lib/speech";
 import { useSettings } from "@/lib/settings";
 import { useProgress } from "@/lib/progress";
 import { suggestTopics } from "@/lib/suggest";
 import { ALL_TOPIC_IDS, TOPIC_INFO } from "@/lib/content";
 import { logChat, markAlert, isLockedToday } from "@/lib/historyLog";
+import { enqueue, isOnline, registerOnlineFlush, type QueuedMessage } from "@/lib/offlineQueue";
+import { localTinoReply } from "@/lib/localBot";
 
 type Msg = { role: "user" | "tino"; text: string; photo?: boolean };
 type Reply = { reply: string; risk?: "sensitive" | "danger" };
@@ -52,11 +55,30 @@ export default function Hablar() {
   const pushUser = (text: string) => {
     if (locked) return;
     setMsgs((prev) => [...prev, { role: "user", text }]);
+    if (!isOnline()) {
+      enqueue({ text, age, level, topic: suggestedTopic });
+      setMsgs((prev) => [
+        ...prev,
+        {
+          role: "tino",
+          text: localTinoReply(text, { age, level, topic: suggestedTopic }),
+        },
+      ]);
+      scrollToBottom();
+      return;
+    }
     logChat({ role: "user", text });
     setThinking(true);
     const hasImage = Boolean(imageRef.current);
     replyTo(text, age, level, imageRef.current, hasImage, suggestedTopic).then(handleReply);
   };
+
+  // Reenvía los mensajes guardados cuando vuelve la red.
+  const pushUserRef = useRef(pushUser);
+  pushUserRef.current = pushUser;
+  useEffect(() => {
+    return registerOnlineFlush((msg: QueuedMessage) => pushUserRef.current(msg.text));
+  }, []);
 
   const onPhoto = (photo: { data: string; mime: string }) => {
     if (!settings.photoConsent) {
@@ -198,10 +220,12 @@ export default function Hablar() {
       {consent && <ConsentModal type={consent} onClose={() => setConsent(null)} />}
 
       {locked && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface/95 px-6">
-          <div className="max-w-sm text-center">
+        <Modal labelledBy="lock-title">
+          <div className="text-center">
             <div className="text-6xl">🛡️</div>
-            <h2 className="mt-2 text-2xl font-bold text-ink">Tino hizo una pausa</h2>
+            <h2 id="lock-title" className="mt-2 text-2xl font-bold text-ink">
+              Tino hizo una pausa
+            </h2>
             <p className="mt-2 text-lg text-soft">
               Algo importante tiene que ver un adulto. Abrí el panel de papás junto
               y hablen de esto. Tino los espera.
@@ -213,7 +237,7 @@ export default function Hablar() {
               Abrir el panel de papás
             </Link>
           </div>
-        </div>
+        </Modal>
       )}
     </main>
   );

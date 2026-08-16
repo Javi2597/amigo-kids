@@ -82,3 +82,14 @@ body {
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.08);
   }
 }
+
+/* Respeta la preferencia de movimiento reducido del sistema. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blink,
+  .animate-bounce-soft,
+  .celebration-star,
+  .celebration-pop,
+  .star-pop {
+    animation: none !important;
+  }
+}

@@ -6,6 +6,7 @@ import Avatar from "@/components/Avatar";
 import MicButton from "@/components/MicButton";
 import { speak, useSpeech } from "@/lib/speech";
 import { useSettings } from "@/lib/settings";
+import { enqueue, isOnline, registerOnlineFlush, type QueuedMessage } from "@/lib/offlineQueue";
 
 type Msg = { role: "user" | "tino"; text: string };
 
@@ -24,6 +25,18 @@ export default function FloatingTino() {
       const clean = text.trim();
       if (!clean) return;
       setMsgs((prev) => [...prev, { role: "user", text: clean }]);
+      if (!isOnline()) {
+        enqueue({ text: clean, age, level });
+        setMsgs((prev) => [
+          ...prev,
+          {
+            role: "tino",
+            text: "Estamos sin conexión 🌫️ Te guardo el mensaje y lo mando apenas vuelva la señal.",
+          },
+        ]);
+        scrollToBottom();
+        return;
+      }
       setThinking(true);
       replyTo(
         clean,
@@ -39,6 +52,13 @@ export default function FloatingTino() {
     },
     [msgs, age, level]
   );
+
+  // Reenvía los mensajes guardados cuando vuelve la red.
+  const pushUserRef = useRef(pushUser);
+  pushUserRef.current = pushUser;
+  useEffect(() => {
+    return registerOnlineFlush((msg: QueuedMessage) => pushUserRef.current(msg.text));
+  }, []);
 
   const { status, startListening, stopListening, listeningText } = useSpeech(
     (text) => pushUser(text)

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Modal from "@/components/Modal";
 
 export type ConsentType = "mic" | "photo";
 
@@ -29,14 +30,12 @@ export default function ConsentModal({
   const copy = COPY[type];
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5"
-    >
-      <div className="w-full max-w-sm rounded-4xl bg-surface p-6 text-center shadow-soft">
+    <Modal onClose={onClose} labelledBy="consent-title">
+      <div className="text-center">
         <div className="text-6xl">🛡️</div>
-        <h2 className="mt-2 text-xl font-bold text-ink">{copy.title}</h2>
+        <h2 id="consent-title" className="mt-2 text-xl font-bold text-ink">
+          {copy.title}
+        </h2>
         <p className="mt-2 text-base text-soft">{copy.text}</p>
         <div className="mt-5 flex flex-col gap-2">
           <Link
@@ -53,6 +52,6 @@ export default function ConsentModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

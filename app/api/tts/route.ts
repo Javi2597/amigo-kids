@@ -1,13 +1,23 @@
 import { NextRequest } from "next/server";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_TEXT = 600;
+const RATE_MAX = 30;
+const RATE_WINDOW_MS = 60_000;
 const cache = new Map<string, { ts: Buffer; expiresAt: number }>();
 const TTL = 30 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, RATE_MAX, RATE_WINDOW_MS)) {
+    return new Response(
+      JSON.stringify({ error: "Demasiados intentos. Esperá un momento." }),
+      { status: 429 }
+    );
+  }
+
   let body: { text?: string; lang?: string };
   try {
     body = await req.json();

@@ -57,6 +57,8 @@ npm run dev        # web en http://127.0.0.1:3000
 
 Variables de entorno: copia `.env.example` a `.env` y pon tu clave de Groq. Cubren chat, TTS, reconocimiento de voz y visión.
 
+**Proveedor de respaldo (opcional):** si configurás `FALLBACK_AI_API_KEY` (recomendado: Gemini de Google AI Studio, gratis), cuando Groq agota su límite diario el chat pasa automáticamente al respaldo y, si también falla, Tino responde con mini-juegos locales desde el contenido de la app (sin IA). Las fotos **solo** van a Groq, nunca a un tercer proveedor.
+
 ## App nativa Android
 
 ```bash

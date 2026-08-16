@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 import { buildKidsPrompt } from "@/lib/kidsPrompt";
 import { ageToLevel, type LevelId } from "@/lib/content";
-import { getAIBase, getAIKey, getAIModel } from "@/lib/ai";
+import { getProviders } from "@/lib/ai";
+import { chatCompletion } from "@/lib/aiRouter";
+import { localTinoReply } from "@/lib/localBot";
+import { rateLimit } from "@/lib/rateLimit";
 import {
   classifyChildText,
   safetyScript,
@@ -13,8 +16,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_MESSAGES = 8;
+const RATE_MAX = 20;
+const RATE_WINDOW_MS = 60_000;
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, RATE_MAX, RATE_WINDOW_MS)) {
+    return new Response(
+      JSON.stringify({ error: "Demasiados intentos. Esperá un momento." }),
+      { status: 429 }
+    );
+  }
+
   let body: { messages?: { role: string; content: string }[]; age?: number; topic?: string };
   try {
     body = await req.json();
@@ -55,41 +67,31 @@ export async function POST(req: NextRequest) {
   ];
 
   try {
-    const upstream = await fetch(`${getAIBase()}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getAIKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: getAIModel(),
-        messages: conversations,
-        temperature: 0.7,
-        max_tokens: 220,
-        stream: false,
-      }),
+    const result = await chatCompletion(getProviders(), {
+      messages: conversations,
+      temperature: 0.7,
+      max_tokens: 220,
+      stream: false,
     });
 
-    if (!upstream.ok) {
-      const text = await upstream.text();
-      return new Response(
-        JSON.stringify({ error: `Proveedor AI: ${upstream.status}`, detail: text }),
-        { status: upstream.status }
-      );
+    if (!result.ok) {
+      // Todos los proveedores fallaron (cuota agotada o caídos): Tino local.
+      console.warn("chat: todos los proveedores fallaron, respondo Tino local");
+      return Response.json({
+        reply: localTinoReply(lastUser?.content ?? "", { age, level, topic }),
+        fallback: true,
+      });
     }
-
-    const data = await upstream.json();
-    let reply: string = data.choices?.[0]?.message?.content ?? "";
 
     // Guard de RESPUESTA: si el texto iba a ser inapropiado, se reemplaza
     // por un mensaje seguro. Formato de lista determinista (sin llamada extra).
-    if (!isReplySafe(reply)) {
-      reply = UNSAFE_REPLY_FALLBACK;
-    }
-
+    const reply = isReplySafe(result.reply) ? result.reply : UNSAFE_REPLY_FALLBACK;
     return Response.json({ reply });
   } catch (err) {
     console.error("chat error", err);
-    return new Response(JSON.stringify({ error: "Error del proveedor AI" }), { status: 502 });
+    return Response.json({
+      reply: localTinoReply(lastUser?.content ?? "", { age, level, topic }),
+      fallback: true,
+    });
   }
 }

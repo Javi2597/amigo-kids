@@ -1,12 +1,16 @@
 import { NextRequest } from "next/server";
 import { analyzeImage, type VisionMessage } from "@/lib/vision";
 import { ageToLevel } from "@/lib/content";
+import { localPhotoReply } from "@/lib/localBot";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+const RATE_MAX = 10;
+const RATE_WINDOW_MS = 60_000;
 
 const UNSAFE_IMAGE_REPLY =
   "Esa imagen no es para mí. Mejor muéstrame otra cosa bonita, y si " +
@@ -19,6 +23,13 @@ type Msg = {
 };
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, RATE_MAX, RATE_WINDOW_MS)) {
+    return new Response(
+      JSON.stringify({ error: "Demasiados intentos. Esperá un momento." }),
+      { status: 429 }
+    );
+  }
+
   let body: { messages?: Msg[]; age?: number; topic?: string };
   try {
     body = await req.json();
@@ -82,21 +93,11 @@ export async function POST(req: NextRequest) {
     return Response.json({ reply: result.message });
   } catch (err) {
     console.error("vision error", err);
-    const msg = String((err as Error)?.message ?? "");
-    if (msg.includes("QuotaExceeded")) {
-      return Response.json(
-        {
-          reply:
-            "Uy, Tino está descansando un ratito y no puede mirar tu foto ahora mismo. Inténtalo en unos segundos, ¡o muéstrame otra cosa!",
-        },
-        { status: 429 }
-      );
-    }
-    return Response.json(
-      {
-        reply: "¡Ups! Se me escapó la foto. ¿Podemos volver a intentarlo juntos?",
-      },
-      { status: 502 }
-    );
+    // Las fotos solo van a Groq (privacidad). Si falla o agota cuota, Tino
+    // responde con texto local SIN describir la foto y sin reenviarla.
+    return Response.json({
+      reply: localPhotoReply(topic),
+      fallback: true,
+    });
   }
 }

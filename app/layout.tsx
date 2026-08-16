@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Fredoka } from "next/font/google";
 import { SettingsProvider } from "@/lib/settings";
 import FloatingTino from "@/components/FloatingTino";
+import TimeLimitGate from "@/components/TimeLimitGate";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import "./globals.css";
 
 const fredoka = Fredoka({
@@ -35,8 +37,6 @@ export const viewport: Viewport = {
   themeColor: "#FFF8F1",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -47,8 +47,11 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${fredoka.variable} font-rounded`}>
         <SettingsProvider>
-          {children}
-          <FloatingTino />
+          <ErrorBoundary>
+            {children}
+            <TimeLimitGate />
+            <FloatingTino />
+          </ErrorBoundary>
         </SettingsProvider>
         <script
           dangerouslySetInnerHTML={{
