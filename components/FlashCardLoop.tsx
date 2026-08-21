@@ -5,7 +5,7 @@ import { speak } from "@/lib/speech";
 import { addStars, recordFlashcardSeen } from "@/lib/progress";
 import { sfx } from "@/lib/sounds";
 import Celebration from "@/components/Celebration";
-import { useSettings } from "@/lib/settings";
+import CardInfoChat from "@/components/CardInfoChat";
 
 type Item = {
   word: string;
@@ -35,31 +35,12 @@ function wordSize(word: string): string {
   return "text-3xl";
 }
 
-async function imageToDataUrl(src: string): Promise<{ data: string; mime: string }> {
-  const res = await fetch(src);
-  if (!res.ok) throw new Error("imagen no disponible");
-  const blob = await res.blob();
-  const mime = blob.type || "image/jpeg";
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("no se pudo leer la imagen"));
-    reader.readAsDataURL(blob);
-  });
-  const comma = dataUrl.indexOf(",");
-  return { data: comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl, mime };
-}
-
 export default function FlashCardLoop({ items, prompt, topic, onProgress }: FlashCardLoopProps) {
-  const { age, level } = useSettings();
   const [index, setIndex] = useState(0);
   const [imgFailed, setImgFailed] = useState(false);
   const [seenWords, setSeenWords] = useState<Set<string>>(new Set());
   const [celebrate, setCelebrate] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [infoText, setInfoText] = useState<string>("");
-  const [infoBusy, setInfoBusy] = useState(false);
-  const [infoMode, setInfoMode] = useState<"vision" | "chat">("vision");
 
   useEffect(() => {
     setImgFailed(false);
@@ -76,7 +57,6 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
 
   const closeInfo = () => {
     setInfoOpen(false);
-    setInfoText("");
   };
 
   const next = () => {
@@ -97,70 +77,6 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
   };
 
   const say = () => speak(item.word);
-
-  const askTinoAboutImage = async () => {
-    if (infoBusy) return;
-    setInfoOpen(true);
-    setInfoBusy(true);
-    setInfoText("");
-    try {
-      const img =
-        imageSrc && (await imageToDataUrl(imageSrc).catch(() => null));
-      if (img) {
-        setInfoMode("vision");
-        const res = await fetch("/api/vision", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [
-              {
-                role: "user",
-                text: `Quiero saber más sobre "${item.word}". Contame qué ves.`,
-                image: { data: img.data, mime: img.mime },
-              },
-            ],
-            age,
-            level,
-            topic,
-          }),
-        });
-        const payload = await res.json().catch(() => ({}));
-        const reply =
-          payload.reply ?? "¡Uy! No pude mirar esta imagen. ¿Intentamos otra vez?";
-        setInfoText(reply);
-        speak(reply);
-        return;
-      }
-
-      setInfoMode("chat");
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "user",
-              content: `¿Qué me contás sobre "${item.word}"?`,
-            },
-          ],
-          age,
-          level,
-          topic,
-        }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      const reply =
-        payload.reply ?? "¡Uy! No pude pensarlo bien. ¿Intentamos otra vez?";
-      setInfoText(reply);
-      speak(reply);
-    } catch {
-      const reply = "¡Ups! Algo salió mal. ¡Otro intento!";
-      setInfoText(reply);
-      speak(reply);
-    } finally {
-      setInfoBusy(false);
-    }
-  };
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -203,7 +119,7 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
         </button>
 
         <button
-          onClick={askTinoAboutImage}
+          onClick={() => setInfoOpen(true)}
           className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-xl shadow-md transition-transform active:scale-90"
           aria-label={`Saber más sobre ${item.word}`}
           title={`Saber más sobre ${item.word}`}
@@ -212,37 +128,12 @@ export default function FlashCardLoop({ items, prompt, topic, onProgress }: Flas
         </button>
 
         {infoOpen && (
-          <div className="mt-2 w-full rounded-3xl border-2 border-lemon/50 bg-white p-4 shadow-soft">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-base font-bold text-ink">
-                {infoMode === "vision"
-                  ? "Tino mira la imagen… 🔍"
-                  : "Tino te cuenta… 💬"}
-              </p>
-              <button
-                onClick={closeInfo}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cream text-sm font-bold text-ink transition-transform active:scale-90"
-                aria-label="Cerrar"
-              >
-                ✕
-              </button>
-            </div>
-            {infoBusy ? (
-              <p className="mt-2 text-base text-soft">Pensando…</p>
-            ) : infoText ? (
-              <>
-                <p className="mt-2 text-base text-ink">{infoText}</p>
-                <button
-                  onClick={() => speak(infoText)}
-                  className="mt-3 rounded-full bg-mascot px-4 py-2 text-sm font-bold text-white shadow-[0_4px_0_#E86A33] transition-transform active:translate-y-0.5 active:shadow-none"
-                >
-                  🔊 Escuchar
-                </button>
-              </>
-            ) : (
-              <p className="mt-2 text-base text-soft">No pude decir nada.</p>
-            )}
-          </div>
+          <CardInfoChat
+            word={item.word}
+            topic={topic}
+            imageSrc={showImage ? imageSrc : null}
+            onClose={closeInfo}
+          />
         )}
       </div>
       <button
