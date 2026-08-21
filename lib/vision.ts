@@ -1,6 +1,9 @@
 import { getAIKey, getVisionBase, getVisionModel } from "@/lib/ai";
 import { buildKidsPrompt } from "@/lib/kidsPrompt";
 import type { LevelId } from "@/lib/content";
+import { parseVisionResult, type VisionResult } from "@/lib/visionParse";
+
+export { parseVisionResult, type VisionResult };
 
 export type VisionImage = { data: string; mime: string };
 export type VisionMessage = {
@@ -134,8 +137,6 @@ No añadas texto fuera del JSON.`;
   return parseVisionResult(raw);
 }
 
-export type VisionResult = { safe: boolean; message: string };
-
 const RETRY_ATTEMPTS = 1;
 const RETRY_BASE_MS = 800;
 
@@ -161,33 +162,4 @@ async function fetchWithRetry(
     await new Promise((r) => setTimeout(r, wait));
   }
   return last as Response;
-}
-
-/** Prueba varios formatos: JSON puro, con fences ```json```, o salpicado de ruido. */
-export function parseVisionResult(rawText: string): VisionResult {
-  let text = rawText
-    .replace(/<thinking>[\s\S]*?<\/thinking>/g, "")
-    .replace(/```(?:json)?\s*([\s\S]*?)```/g, "$1")
-    .trim()
-    .replace(/^[^{]*/, "")
-    .replace(/[^}]*$/, "");
-
-  let safe = false;
-  let message = "";
-  try {
-    const parsed = JSON.parse(text);
-    if (typeof parsed === "object" && parsed !== null) {
-      safe = parsed.safe === true;
-      message = String(parsed.message ?? "").trim();
-    }
-  } catch {
-    // fallback a regex si el JSON no fue estricto
-    const sm = text.match(/"safe"\s*:\s*(true|false)/);
-    if (sm) safe = sm[1] === "true";
-    const mm = text.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    if (mm) message = mm[1].replace(/\\"/g, '"').replace(/\\n/g, " ");
-  }
-
-  message = message.replace(/\s+/g, " ").trim();
-  return { safe, message };
 }

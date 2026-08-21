@@ -195,7 +195,11 @@ export default function Hablar() {
             }
           />
           <div className="flex flex-col gap-2">
-            <PhotoButton onImage={onPhoto} />
+            <PhotoButton
+              onImage={onPhoto}
+              blocked={!settings.photoConsent}
+              onBlocked={() => setConsent("photo")}
+            />
             <span className="text-center text-xs text-soft">
               Tu foto no se guarda
             </span>

@@ -35,6 +35,7 @@ Scripts útiles:
 
 ```bash
 npm run typecheck   # chequeo de tipos
+npm test            # tests del clasificador de seguridad y del parseo de visión
 npm run build       # build de producción
 npm run images      # descargar ilustraciones de las flashcards
 npm run icons       # regenerar iconos de la PWA
@@ -86,7 +87,8 @@ No necesita permisos extra en Safari. Si algún día se genera la app nativa (`n
 
 ## Seguridad y privacidad
 
-- **Moderación real**: `lib/safety.ts` clasifica cada mensaje (riesgo alto → guion fijo seguro, sin que el LLM responda libremente) y guard la respuesta de Tino antes de hablar; `/api/vision` integra una pasada de seguridad en la misma llamada y nunca describe fotos no aptas (una sola llamada por foto evita caer en 429 del plan gratuito).
+- **Moderación real**: `lib/safety.ts` clasifica cada mensaje de **las dos rutas** (`/api/chat` y `/api/vision`): riesgo alto → guion fijo seguro, sin que el LLM responda libremente y sin que la foto llegue a subirse. La respuesta de Tino pasa por un guard antes de hablar, también en visión. Además `/api/vision` integra una pasada de seguridad en la misma llamada y nunca describe fotos no aptas (una sola llamada por foto evita caer en 429 del plan gratuito).
+- **Sin falsos positivos que rompan el juego**: el clasificador compara palabras completas y pide contexto en las frases ambiguas del español ("me toca" es el turno del juego, "me pegan los stickers" es una manualidad, "pistola de agua" es un juguete). Está cubierto por `npm test` en las dos direcciones: lo que debe interceptar y lo que debe dejar pasar.
 - **Espacios de riesgo**: 3 alertas de riesgo alto en un día → pausa automática del chat que solo puede quitar un adulto.
 - **Consentimientos**: micrófono y cámara son opt-in del adulto en el panel de papás; sin permiso los botones quedan inactivos.
 - Las fotos solo viven en memoria mientras se analizan; nunca se guardan en el teléfono ni en el servidor (`/api/vision` es stateless).

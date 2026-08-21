@@ -10,6 +10,7 @@
     "images": "node scripts/fetch-images.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/*.test.mts",
     "cap:sync": "cap sync android",
     "cap:open": "cap open android"
   },

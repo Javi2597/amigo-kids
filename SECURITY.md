@@ -12,8 +12,9 @@
 | Riesgo | Mitigación |
 |---|---|
 | Datos personales | Tino nunca pide nombre completo, dirección ni información privada (regla de sistema + clasificador) |
-| Contenido no apto | Triple capa: clasificador determinista en `/api/chat` (intercepta `danger` antes del proveedor con guion fijo) + prompt de sistema + guard determinista de la respuesta (`isReplySafe`) |
-| Imágenes no aptas | Una sola llamada de visión por foto (`/api/vision` → `analyzeImage`) integra el guard: si `safe:false` la ruta responde con guion fijo y la foto NUNCA se describe. Sin costo doble (evita 429 del plan gratuito) |
+| Contenido no apto | Triple capa **en las dos rutas** (`/api/chat` y `/api/vision`): clasificador determinista que intercepta `danger` antes del proveedor con guion fijo + prompt de sistema + guard determinista de la respuesta (`isReplySafe`) |
+| Imágenes no aptas | El texto que acompaña la foto pasa por el clasificador **antes** de subir la imagen. Si pasa, una sola llamada de visión (`/api/vision` → `analyzeImage`) integra el guard: si `safe:false` la ruta responde con guion fijo y la foto NUNCA se describe. Sin costo doble (evita 429 del plan gratuito) |
+| Falsos positivos del clasificador | El matching es por palabra completa y las frases ambiguas del español piden contexto (`me toca` = turno de juego, `me pegan` = pegar stickers, `pistola de agua`). Un falso positivo de riesgo alto le cortaría el chat al niño, así que está cubierto por tests (`npm test`) |
 | Situaciones de riesgo del menor | Categorías de riesgo alto → guion fijo "hablá con un adulto"; 3 alertas al día → bloqueo suave del chat que solo remueve el padre |
 | Privacidad de fotos | Las fotos viven solo en memoria del navegador mientras se analizan; `/api/vision` es stateless |
 | Consentimientos de menor | Micrófono y cámara exigen opt-in del adulto en el panel de papás; sin permiso, botones inactivos + modal explicativo |
@@ -29,6 +30,18 @@
 - Texto de TTS: **600 caracteres**.
 - Clasificador de riesgo (`lib/safety.ts`): guion fijo seguro sin llamada al proveedor.
 - Guard de respuesta (`isReplySafe`): lista determinista; no gasta llamadas extra.
+
+## Tests de seguridad
+
+```bash
+npm test
+```
+
+`lib/safety.test.mts` fija el contrato en las dos direcciones: lo que **debe**
+interceptarse (autolesión con leetspeak y faltas, violencia en casa, abuso,
+inyección de prompt) y lo que **debe pasar** (el habla normal de un niño
+jugando). `lib/visionParse.test.mts` verifica que el parseo de la respuesta de
+visión sea fail-closed ante cualquier formato inesperado.
 
 ## Permisos del dispositivo
 

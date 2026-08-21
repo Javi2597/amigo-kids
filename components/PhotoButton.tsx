@@ -6,8 +6,10 @@ export type PhotoData = { data: string; mime: string };
 
 type PhotoButtonProps = {
   onImage: (photo: PhotoData) => void;
-  disabled?: boolean;
-  size?: number;
+  /** Sin el consentimiento del adulto el selector ni siquiera se abre. */
+  blocked?: boolean;
+  /** Qué hacer cuando está bloqueado (mostrar el modal de consentimiento). */
+  onBlocked?: () => void;
 };
 
 const MAX_EDGE = 1024;
@@ -19,10 +21,18 @@ const JPEG_QUALITY = 0.75;
  * de tokens por foto). Solo devuelve la miniatura base64; no guarda en disco ni
  * en el historial.
  */
-export default function PhotoButton({ onImage, disabled, size = 72 }: PhotoButtonProps) {
+export default function PhotoButton({ onImage, blocked, onBlocked }: PhotoButtonProps) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+
+  const open = (ref: React.RefObject<HTMLInputElement | null>) => {
+    if (blocked) {
+      onBlocked?.();
+      return;
+    }
+    ref.current?.click();
+  };
 
   const handle = async (file: File | undefined | null) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -34,7 +44,6 @@ export default function PhotoButton({ onImage, disabled, size = 72 }: PhotoButto
       // silencioso: el niño simplemente no envió nada
     } finally {
       setBusy(false);
-      const wasCamera = cameraRef.current?.files;
       if (cameraRef.current) cameraRef.current.value = "";
       if (galleryRef.current) galleryRef.current.value = "";
     }
@@ -60,16 +69,16 @@ export default function PhotoButton({ onImage, disabled, size = 72 }: PhotoButto
         aria-label="Subir una foto desde el dispositivo"
       />
       <button
-        onClick={() => cameraRef.current?.click()}
-        disabled={disabled !== undefined || busy}
+        onClick={() => open(cameraRef)}
+        disabled={busy}
         className="flex h-16 w-16 items-center justify-center rounded-full bg-sky shadow-[0_5px_0_#3BA7D6] transition-transform active:scale-95 active:shadow-none"
         aria-label="Enviar foto"
       >
         <CameraSvg />
       </button>
       <button
-        onClick={() => galleryRef.current?.click()}
-        disabled={disabled !== undefined || busy}
+        onClick={() => open(galleryRef)}
+        disabled={busy}
         className="flex h-16 w-16 items-center justify-center rounded-2xl bg-lavender shadow-[0_5px_0_#7A6BD1] transition-transform active:scale-95 active:shadow-none"
         aria-label="Subir foto de la galería"
       >

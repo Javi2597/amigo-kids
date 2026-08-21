@@ -3,6 +3,12 @@ import { analyzeImage, type VisionMessage } from "@/lib/vision";
 import { ageToLevel } from "@/lib/content";
 import { localPhotoReply } from "@/lib/localBot";
 import { rateLimit } from "@/lib/rateLimit";
+import {
+  classifyChildText,
+  safetyScript,
+  isReplySafe,
+  UNSAFE_REPLY_FALLBACK,
+} from "@/lib/safety";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +81,21 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: "Sin mensajes" }), { status: 400 });
   }
 
+  // Moderación de ENTRADA, igual que en /api/chat: el texto que acompaña a la
+  // foto pasa por el mismo clasificador. Antes esta ruta era un camino para
+  // saltarse el guion fijo, la alerta y la pausa de 3 avisos. Además, el riesgo
+  // se atrapa ANTES de subir la imagen al proveedor.
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  if (lastUser?.text) {
+    const verdict = classifyChildText(lastUser.text);
+    if (verdict.risk !== "none") {
+      return Response.json({
+        reply: safetyScript(verdict),
+        safety: { risk: verdict.risk, category: verdict.category },
+      });
+    }
+  }
+
   const age = Math.min(12, Math.max(3, Number(body.age) || 5));
   const level = ageToLevel(age);
   const topic =
@@ -90,7 +111,11 @@ export async function POST(req: NextRequest) {
         safety: { risk: "sensitive", category: "unsafe_image" },
       });
     }
-    return Response.json({ reply: result.message });
+    // Guard de SALIDA: la descripción de la foto pasa por la misma traba
+    // determinista que la respuesta del chat.
+    return Response.json({
+      reply: isReplySafe(result.message) ? result.message : UNSAFE_REPLY_FALLBACK,
+    });
   } catch (err) {
     console.error("vision error", err);
     // Las fotos solo van a Groq (privacidad). Si falla o agota cuota, Tino
